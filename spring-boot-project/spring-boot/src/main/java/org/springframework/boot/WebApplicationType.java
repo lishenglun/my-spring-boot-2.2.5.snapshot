@@ -59,9 +59,9 @@ public enum WebApplicationType {
 	private static final String REACTIVE_APPLICATION_CONTEXT_CLASS = "org.springframework.boot.web.reactive.context.ReactiveWebApplicationContext";
 
 	/**
-	 * 根据classPath推导出Web项目的类型
-	 * Servlet项目或者Reactive项目
-	 * @return
+	 * 根据classPath推导出Web项目的类型 .
+	 * Servlet项目或者Reactive项目。
+	 * @return 返回对应的类型
 	 */
 	static WebApplicationType deduceFromClasspath() {
 		if (ClassUtils.isPresent(WEBFLUX_INDICATOR_CLASS, null)

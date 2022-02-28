@@ -176,7 +176,7 @@ public class ServletWebServerApplicationContext extends GenericWebApplicationCon
 		WebServer webServer = this.webServer;
 		ServletContext servletContext = getServletContext();
 		if (webServer == null && servletContext == null) {
-			ServletWebServerFactory factory = getWebServerFactory();// 获取WebServer的工厂对象
+			ServletWebServerFactory factory = getWebServerFactory(); // 获取WebServer的工厂对象
 			this.webServer = factory.getWebServer(getSelfInitializer()); // 获取具体的WebServer
 		}
 		else if (servletContext != null) {

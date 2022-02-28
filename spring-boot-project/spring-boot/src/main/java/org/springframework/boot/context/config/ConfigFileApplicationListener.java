@@ -173,8 +173,8 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 	}
 
 	/**
-	 * 默认的是监听所有的事件
-	 * @param event
+	 * 默认的是监听所有的事件.
+	 * @param event 事件
 	 */
 	@Override
 	public void onApplicationEvent(ApplicationEvent event) {
@@ -205,11 +205,7 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 		return SpringFactoriesLoader.loadFactories(EnvironmentPostProcessor.class, getClass().getClassLoader());
 	}
 
-	/**
-	 * 这个是 EnvironmentPostProcessor 接口定义的抽象方法
-	 * @param environment the environment to post-process
-	 * @param application the application to which the environment belongs
-	 */
+
 	@Override
 	public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
 		// 单个方法直接进入

@@ -75,7 +75,7 @@ public class TomcatWebServerFactoryCustomizer
 	}
 
 	/**
-	 * 定制Tomcat的详细信息
+	 * 定制Tomcat的详细信息.
 	 * @param factory the web server factory to customize
 	 */
 	@Override

@@ -57,9 +57,9 @@ public class PropertiesPropertySourceLoader implements PropertySourceLoader {
 	private Map<String, ?> loadProperties(Resource resource) throws IOException {
 		String filename = resource.getFilename();
 		if (filename != null && filename.endsWith(XML_FILE_EXTENSION)) {
-			return (Map) PropertiesLoaderUtils.loadProperties(resource);// 处理application.xml
+			return (Map) PropertiesLoaderUtils.loadProperties(resource); // 处理application.xml
 		}
-		return new OriginTrackedPropertiesLoader(resource).load();// 处理 application.properties
+		return new OriginTrackedPropertiesLoader(resource).load(); // 处理 application.properties
 	}
 
 }

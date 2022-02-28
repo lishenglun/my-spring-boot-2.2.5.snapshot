@@ -174,10 +174,10 @@ public class TomcatServletWebServerFactory extends AbstractServletWebServerFacto
 		if (this.disableMBeanRegistry) {
 			Registry.disableRegistry();
 		}
-		Tomcat tomcat = new Tomcat();// 创建Tomcat容器，并且配置连接器，引擎等属性
+		Tomcat tomcat = new Tomcat(); // 创建Tomcat容器，并且配置连接器，引擎等属性
 		File baseDir = (this.baseDirectory != null) ? this.baseDirectory : createTempDir("tomcat");
 		tomcat.setBaseDir(baseDir.getAbsolutePath());
-		Connector connector = new Connector(this.protocol);// 创建连接器
+		Connector connector = new Connector(this.protocol); // 创建连接器
 		connector.setThrowOnFailure(true);
 		tomcat.getService().addConnector(connector);
 		customizeConnector(connector);
@@ -185,10 +185,10 @@ public class TomcatServletWebServerFactory extends AbstractServletWebServerFacto
 		tomcat.getHost().setAutoDeploy(false);
 		configureEngine(tomcat.getEngine()); // 配置Engine
 		for (Connector additionalConnector : this.additionalTomcatConnectors) {
-			tomcat.getService().addConnector(additionalConnector);// Service关联Connector
+			tomcat.getService().addConnector(additionalConnector); // Service关联Connector
 		}
 		prepareContext(tomcat.getHost(), initializers);
-		return getTomcatWebServer(tomcat); // 获取TomcatWebServer
+		return getTomcatWebServer(tomcat);  // 获取TomcatWebServer
 	}
 
 	private void configureEngine(Engine engine) {

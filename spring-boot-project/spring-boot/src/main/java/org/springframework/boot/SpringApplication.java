@@ -283,10 +283,11 @@ public class SpringApplication {
 	}
 
 	/**
-	 * StackTrace:
+	 * StackTrace.
 	 *    我们在学习函数调用时，都知道每个函数都拥有自己的栈空间。
-	 *    一个函数被调用时，就创建一个新的栈空间。那么通过函数的嵌套调用最后就形成了一个函数调用堆栈
+	 *    一个函数被调用时，就创建一个新的栈空间。那么通过函数的嵌套调用最后就形成了一个函数调用堆栈。
 	 * @return
+	 *     类对象
 	 */
 	private Class<?> deduceMainApplicationClass() {
 		try {
@@ -463,24 +464,24 @@ public class SpringApplication {
 	}
 
 	/**
-	 * 扩展点的加载
-	 * @param type
-	 * @param <T>
-	 * @return
+	 * 扩展点的加载.
+	 * @param type 类型
+	 * @param <T> 泛型
+	 * @return 返回实例
 	 */
 	private <T> Collection<T> getSpringFactoriesInstances(Class<T> type) {
 		return getSpringFactoriesInstances(type, new Class<?>[] {});
 	}
 
 	/**
-	 * 初始化Initializer
-	 * SpringFactoriesLoader.loadFactoryNames(type, classLoader)
-	 *    根据对应的类型加载 spring.factories 文件中的配置信息
-	 * @param type
-	 * @param parameterTypes
-	 * @param args
-	 * @param <T>
-	 * @return
+	 * 初始化Initializer.
+	 * SpringFactoriesLoader.loadFactoryNames(type, classLoader)。
+	 *    根据对应的类型加载 spring.factories 文件中的配置信息。
+	 * @param type 类型
+	 * @param parameterTypes 参数类型
+	 * @param args 参数
+	 * @param <T> 泛型
+	 * @return  返回实例
 	 */
 	private <T> Collection<T> getSpringFactoriesInstances(Class<T> type, Class<?>[] parameterTypes, Object... args) {
 		// 获取当前上下文类加载器
