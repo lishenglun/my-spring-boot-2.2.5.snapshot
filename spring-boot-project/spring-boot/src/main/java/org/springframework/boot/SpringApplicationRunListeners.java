@@ -27,7 +27,9 @@ import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.util.ReflectionUtils;
 
 /**
- * A collection of {@link SpringApplicationRunListener}.
+ * 存储SpringApplicationRunListener集合，相当于一个广播器
+ *
+ * A collection of {@link SpringApplicationRunListener}. —— {@link SpringApplicationRunListener} 的集合。
  *
  * @author Phillip Webb
  */
@@ -35,16 +37,26 @@ class SpringApplicationRunListeners {
 
 	private final Log log;
 
-	// 存储的多个 SpringApplicationRunListener 对象的容器
+	/**
+	 * 默认获取的SpringApplicationRunListener只有EventPublishingRunListener这1个
+	 */
+	// Spring应用程序运行监听器集合
 	private final List<SpringApplicationRunListener> listeners;
 
+	/**
+	 * @param log
+	 * @param listeners			spring.factories文件中所有的SpringApplicationRunListener类型的对象
+	 */
 	SpringApplicationRunListeners(Log log, Collection<? extends SpringApplicationRunListener> listeners) {
 		this.log = log;
 		this.listeners = new ArrayList<>(listeners);
 	}
 
+	/**
+	 * 发布启动事件
+	 */
 	void starting() {
-		// 发布器 EventPulishingRunListener
+		// 调用内部发所有的监听器
 		for (SpringApplicationRunListener listener : this.listeners) {
 			listener.starting();
 		}
@@ -52,7 +64,6 @@ class SpringApplicationRunListeners {
 
 	void environmentPrepared(ConfigurableEnvironment environment) {
 		for (SpringApplicationRunListener listener : this.listeners) {
-			// 通过事件发布器来发布对应的事件
 			listener.environmentPrepared(environment);
 		}
 	}

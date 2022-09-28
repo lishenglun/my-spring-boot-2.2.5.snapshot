@@ -95,8 +95,10 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 		}
 		AutoConfigurationMetadata autoConfigurationMetadata = AutoConfigurationMetadataLoader
 				.loadMetadata(this.beanClassLoader);
+
 		AutoConfigurationEntry autoConfigurationEntry = getAutoConfigurationEntry(autoConfigurationMetadata,
 				annotationMetadata);
+
 		return StringUtils.toStringArray(autoConfigurationEntry.getConfigurations());
 	}
 
@@ -112,14 +114,23 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 		if (!isEnabled(annotationMetadata)) {
 			return EMPTY_ENTRY;
 		}
+		// 加载当前系统下META-INF/spring.factories 文件中声明的配置类
 		AnnotationAttributes attributes = getAttributes(annotationMetadata);
+
 		List<String> configurations = getCandidateConfigurations(annotationMetadata, attributes);
+		// 移除重复的
 		configurations = removeDuplicates(configurations);
+		// 获取显示排除的
 		Set<String> exclusions = getExclusions(annotationMetadata, attributes);
+		// 检查一下要排除的
 		checkExcludedClasses(configurations, exclusions);
+		// 移除掉要排除的
 		configurations.removeAll(exclusions);
+		// 根据"配置类加载的条件"，过滤掉当前环境下用不到的配置类（有很多的配置类，但是在启动的时候，不能把里面的都给加载，因为如果都加载的话，则会使得spring boot启动速度很慢，内存越来越紧张）
 		configurations = filter(configurations, autoConfigurationMetadata);
+
 		fireAutoConfigurationImportEvents(configurations, exclusions);
+
 		return new AutoConfigurationEntry(configurations, exclusions);
 	}
 
@@ -168,7 +179,9 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 	 * @return a list of candidate configurations
 	 */
 	protected List<String> getCandidateConfigurations(AnnotationMetadata metadata, AnnotationAttributes attributes) {
+		// 加载spring.factories文件的所有内容
 		List<String> configurations = SpringFactoriesLoader.loadFactoryNames(getSpringFactoriesLoaderFactoryClass(),
+
 				getBeanClassLoader());
 		Assert.notEmpty(configurations, "No auto configuration classes found in META-INF/spring.factories. If you "
 				+ "are using a custom packaging, make sure that file is correct.");

@@ -43,25 +43,34 @@ import org.springframework.util.ErrorHandler;
  * @author Artsiom Yudovin
  * @since 1.0.0
  */
-public class EventPublishingRunListener implements SpringApplicationRunListener, Ordered {
+public class EventPublishingRunListener/* 事件发布运行监听器 */ implements SpringApplicationRunListener, Ordered {
 
 	private final SpringApplication application;
 
 	private final String[] args;
 
 	// List<ApplicatListener> list = null;
-	private final SimpleApplicationEventMulticaster initialMulticaster;
+	// 事件广播器
+	private final SimpleApplicationEventMulticaster/* 简单应用事件多播 */ initialMulticaster;
 
 	public EventPublishingRunListener(SpringApplication application, String[] args) {
 		this.application = application;
 		this.args = args;
-		// 初始化的多个监听器，其实就是我们前面加载的spring.factories文件中的11个监听器
+
+		/* 1、创建广播器SimpleApplicationEventMulticaster */
+		// 创建广播器
 		this.initialMulticaster = new SimpleApplicationEventMulticaster();
-		// application.getListeners() 获取11个监听器
-		for (ApplicationListener<?> listener : application.getListeners()) {
-			// 绑定初始的11个监听器
+
+		/* 2、往广播器里面注册所有的监听器 */
+		/**
+		 * 题外：默认的spring.factories文件中有11个监听器
+		 */
+		// 遍历监听器
+		for (ApplicationListener<?>/* 应用程序监听器 */ listener : application.getListeners()/* 获取所有监听器(默认的有11个监听器) */) {
+			// 往事件广播器里面，注册监听器
 			this.initialMulticaster.addApplicationListener(listener);
 		}
+
 	}
 
 	@Override
@@ -69,10 +78,14 @@ public class EventPublishingRunListener implements SpringApplicationRunListener,
 		return 0;
 	}
 
+	/**
+	 * 事件广播器，发布应用启动事件
+	 */
 	@Override
 	public void starting() {
-		// System.out.println("EventPublishingRunListener ----》starting ");
-		this.initialMulticaster.multicastEvent(new ApplicationStartingEvent(this.application, this.args));
+		// System.out.println("EventPublishingRunListener ----> starting ");
+		// 事件广播器，发布应用启动事件
+		this.initialMulticaster.multicastEvent(new ApplicationStartingEvent/* 应用启动事件 */(this.application, this.args));
 	}
 
 	@Override

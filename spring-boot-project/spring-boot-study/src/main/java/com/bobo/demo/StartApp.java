@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
 public class StartApp {
 
 	public static void main(String[] args) {
-		//  test
 		SpringApplication.run(StartApp.class);
 	}
+
 }

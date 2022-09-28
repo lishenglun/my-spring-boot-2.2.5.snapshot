@@ -25,23 +25,35 @@ import org.springframework.util.ClassUtils;
  * @author Brian Clozel
  * @since 2.0.0
  */
-public enum WebApplicationType {
+public enum WebApplicationType/* 网络应用程序类型 */ {
 
 	/**
+	 * 当前程序不是web程序，不会启动内嵌的web服务器
+	 *
 	 * The application should not run as a web application and should not start an
 	 * embedded web server.
+	 *
+	 * 该应用程序不应作为Web应用程序运行，也不应启动嵌入式Web服务器。
 	 */
 	NONE,
 
 	/**
+	 * 当前程序是servlet web程序，会启动内嵌的servlet web服务器
+	 *
 	 * The application should run as a servlet-based web application and should start an
 	 * embedded servlet web server.
+	 *
+	 * 该应用程序应作为基于servlet的Web应用程序运行，并应启动嵌入式servlet Web服务器。
 	 */
 	SERVLET,
 
 	/**
+	 * 当前程序是响应式web程序，会启动内嵌的响应式web服务器
+	 *
 	 * The application should run as a reactive web application and should start an
 	 * embedded reactive web server.
+	 *
+	 * 该应用程序应作为响应式Web应用程序运行，并应启动嵌入式响应式Web服务器。
 	 */
 	REACTIVE;
 
@@ -59,21 +71,26 @@ public enum WebApplicationType {
 	private static final String REACTIVE_APPLICATION_CONTEXT_CLASS = "org.springframework.boot.web.reactive.context.ReactiveWebApplicationContext";
 
 	/**
-	 * 根据classPath推导出Web项目的类型 .
-	 * Servlet项目或者Reactive项目。
-	 * @return 返回对应的类型
+	 * 根据是否存在"某些类的类路径名称"推导出Web项目的类型：servlet web项目 / reactive web项目 / 不是一个web项目
 	 */
-	static WebApplicationType deduceFromClasspath() {
-		if (ClassUtils.isPresent(WEBFLUX_INDICATOR_CLASS, null)
-				&& !ClassUtils.isPresent(WEBMVC_INDICATOR_CLASS, null)
-				&& !ClassUtils.isPresent(JERSEY_INDICATOR_CLASS, null)) {
+	static WebApplicationType/* 网络应用程序类型 */ deduceFromClasspath() {
+		/* 1、存在DispatcherHandler，并且不存在DispatcherServlet，并且不存在ServletContainer，则代表：当前程序是响应式web程序，会启动内嵌的响应式web服务器 */
+		if (ClassUtils.isPresent(WEBFLUX_INDICATOR_CLASS/* org.springframework.web.reactive.DispatcherHandler */, null)
+				&& !ClassUtils.isPresent(WEBMVC_INDICATOR_CLASS/* org.springframework.web.servlet.DispatcherServlet */, null)
+				&& !ClassUtils.isPresent(JERSEY_INDICATOR_CLASS/* org.glassfish.jersey.servlet.ServletContainer */, null)) {
+			// 当前程序是响应式web程序，会启动内嵌的响应式web服务器
 			return WebApplicationType.REACTIVE;
 		}
-		for (String className : SERVLET_INDICATOR_CLASSES) {
+
+		/* 2、如果不存在Servlet，或者不存在ConfigurableWebApplicationContext，则代表：当前程序不是web程序，不会启动内嵌的web服务器 */
+		for (String className : SERVLET_INDICATOR_CLASSES/* javax.servlet.Servlet,org.springframework.web.context.ConfigurableWebApplicationContext */) {
 			if (!ClassUtils.isPresent(className, null)) {
+				// 当前程序不是web程序，不会启动内嵌的web服务器
 				return WebApplicationType.NONE;
 			}
 		}
+
+		/* 3、以上都不成立，则代表：当前程序是servlet web程序，会启动内嵌的servlet web服务器 */
 		return WebApplicationType.SERVLET;
 	}
 

@@ -255,6 +255,12 @@ public class SpringApplication {
 	}
 
 	/**
+	 * 本方法中完成了几个核心操作：
+	 * （1）根据是否存在"某些类的类路径名称"推导出Web项目的类型：servlet web项目 / reactive web项目 / 不是一个web项目
+	 * （2）初始化配置在spring.factories文件中的"初始化器" —— ApplicationContextInitializer
+	 * （3）初始化配置在spring.factories文件中的"监听器" —— ApplicationListener
+	 * （4）通过StackTrace反推main方法所在的Class对象
+	 *
 	 * Create a new {@link SpringApplication} instance. The application context will load
 	 * beans from the specified primary sources (see {@link SpringApplication class-level}
 	 * documentation for details. The instance can be customized before calling
@@ -269,40 +275,55 @@ public class SpringApplication {
 		// 传递的resourceLoader为null
 		this.resourceLoader = resourceLoader;
 		Assert.notNull(primarySources, "PrimarySources must not be null");
-		// 记录主方法的配置类Class
+
+		// 1、记录主方法的配置类Class
 		this.primarySources = new LinkedHashSet<>(Arrays.asList(primarySources));
-		// 记录当前项目的类型
-		this.webApplicationType = WebApplicationType.deduceFromClasspath();
-		// 加载配置在spring.factories文件中的ApplicationContextInitializer对应的类型并实例化
-		// 并将加载的数据存储在了 initializers 成员变量中。
+
+		// 2、根据是否存在"某些类的类路径名称"推导出Web项目的类型：servlet web项目 / reactive web项目 / 不是一个web项目
+		this.webApplicationType = WebApplicationType.deduceFromClasspath/* 从类路径推断 */();
+
+		/**
+		 * 💡提示：当前Spring boot项目下，只有spring-boot、spring-boot-autoconfigure这2个模块下，存在spring.factories文件
+		 */
+
+		// 3、初始化配置在spring.factories文件中的"初始化器"
+		// 加载配置在spring.factories文件中的ApplicationContextInitializer实现类的全限定类名，并通过反射实例化对象，然后存储在initializers成员变量中
 		setInitializers((Collection) getSpringFactoriesInstances(ApplicationContextInitializer.class));
-		// 初始化监听器 并将加载的监听器实例对象存储在了listeners成员变量中
+
+		// 4、初始化配置在spring.factories文件中的"监听器"
+		// 加载配置在spring.factories文件中的监听器并实例化对象，然后将监听器对象存储在了listeners成员变量中
 		setListeners((Collection) getSpringFactoriesInstances(ApplicationListener.class));
-		// 反推main方法所在的Class对象 并记录在了mainApplicationClass对象中
-		this.mainApplicationClass = deduceMainApplicationClass();
+
+		// 5、通过堆栈信息反推main方法所在的Class对象
+		// 具体做法：挨个比对堆栈的方法名称是不是main，是的话就证明找到了main方法了，然后获取main方法所在的Class
+		this.mainApplicationClass = deduceMainApplicationClass()/* 反推main方法所在的Class对象 */;
 	}
 
 	/**
-	 * StackTrace.
-	 *    我们在学习函数调用时，都知道每个函数都拥有自己的栈空间。
-	 *    一个函数被调用时，就创建一个新的栈空间。那么通过函数的嵌套调用最后就形成了一个函数调用堆栈。
-	 * @return
-	 *     类对象
+	 * 通过堆栈信息，推导main方法所在的Class
+	 *
+	 * 具体做法：挨个比对堆栈的方法名称是不是main，是的话就证明找到了main方法了，然后获取main方法所在的Class
 	 */
 	private Class<?> deduceMainApplicationClass() {
 		try {
+			/**
+			 * 1、StackTrace：我们在学习函数调用时，都知道每个函数都拥有自己的栈空间。
+			 * 一个函数被调用时，就创建一个新的栈空间。那么通过函数的嵌套调用最后就形成了一个函数调用堆栈。
+			 */
 			// 获取当前run方法执行的堆栈信息
 			StackTraceElement[] stackTrace = new RuntimeException().getStackTrace();
-			// 遍历堆栈信息
+
+			// 遍历当前run方法执行的堆栈信息
 			for (StackTraceElement stackTraceElement : stackTrace) {
-				// 如果调用的是main方法说明就找到了
+				// 比对堆栈的方法名称是不是main，是的话就证明找到了main方法了，
+				// 然后获取main方法所在的Class
 				if ("main".equals(stackTraceElement.getMethodName())) {
 					return Class.forName(stackTraceElement.getClassName());
 				}
 			}
 		}
 		catch (ClassNotFoundException ex) {
-			// Swallow and continue
+			// Swallow and continue —— 吞下并继续
 		}
 		return null;
 	}
@@ -314,50 +335,77 @@ public class SpringApplication {
 	 * @return a running {@link ApplicationContext}
 	 */
 	public ConfigurableApplicationContext run(String... args) {
-		// 创建一个任务执行观察器
+		// 创建一个任务执行观察器，统计启动的时间
 		StopWatch stopWatch = new StopWatch();
 		// 开始执行记录执行时间
 		stopWatch.start();
-		// 声明 ConfigurableApplicationContext 对象
+
+		// 要返回的容器对象（应用程序上下文 / Spring容器对象）
 		ConfigurableApplicationContext context = null;
-		// 声明集合容器用来存储 SpringBootExceptionReporter 启动错误的回调接口
+
+		/**
+		 * SpringBootExceptionReporter：启动错误的回调接口。
+		 */
+		// 创建存储SpringBootExceptionReporter的集合
+		// 记录服务启动时出现的一些异常的一些报告的回调接口
 		Collection<SpringBootExceptionReporter> exceptionReporters = new ArrayList<>();
+
 		// 设置了一个名为java.awt.headless的系统属性
-		// 其实是想设置该应用程序,即使没有检测到显示器,也允许其启动.
-		//对于服务器来说,是不需要显示器的,所以要这样设置.
+		// 为的是，让当前应用程序，在即使没有检测到显示器的情况下，也允许其启动，因为我们的代码一般在服务器里面，对于服务器来说，是不需要显示器的，所以要这样设置
 		configureHeadlessProperty();
-		// 获取 SpringApplicationRunListener 加载的是 EventPublishingRunListener
-		// 获取启动时的监听器---》 事件发布器  发布相关事件的  11个监听器 谁去发布事件？
+
+		/**
+		 * 默认获取的SpringApplicationRunListener只有EventPublishingRunListener这1个
+		 */
+		// 读取spring.factories文件中所有的SpringApplicationRunListener(spring程序启动时的监听器)类型的对象，
+		// 然后创建一个SpringApplicationRunListeners，存储所有获取到的SpringApplicationRunListener类型对象
+		// SpringApplicationRunListeners本质上就是一个"广播器/事件发布器"，用来发布事件
+		// 简单概括：获取所有启动时的监听器，然后构建一个广播器，全部放入到广播器当中，由广播器来发布事件，触发所有启动时监听器执行事件
+		// 题外：广播器里面具备所有监听器的实例
 		SpringApplicationRunListeners listeners = getRunListeners(args);
-		// 触发启动事件  发布 starting 事件 --》 那么监听starting事件的监听器就会触发
+
+		// 发布启动事件(发布starting事件)
+		// 题外：会触发调用"监听starting事件的监听器"
 		listeners.starting();
 		try {
-			// 构造一个应用程序的参数持有类
+			// 创建一个应用程序的参数持有对象
 			ApplicationArguments applicationArguments = new DefaultApplicationArguments(args);
-			// 创建并配置环境
+
+			// 读取配置环境，创建配置环境对象（jdk的路径、变量、当前系统的用户名什么的都会获取到）
 			ConfigurableEnvironment environment = prepareEnvironment(listeners, applicationArguments);
+
 			// 配置需要忽略的BeanInfo信息
 			configureIgnoreBeanInfo(environment);
-			// 输出的Banner信息
+
+			// 打印Banner信息（Banner信息也就是Spring图标）
 			Banner printedBanner = printBanner(environment);
-			// 创建应用上下文对象
+
+			// 创建应用程序上下文对象（Spring容器对象）
 			context = createApplicationContext();
+
 			// 加载配置的启动异常处理器
 			exceptionReporters = getSpringFactoriesInstances(SpringBootExceptionReporter.class,
 					new Class[] { ConfigurableApplicationContext.class }, context);
-			// 刷新前操作
+
+			// 刷新容器前做的一些操作：准备上下文环境
 			prepareContext(context, environment, listeners, applicationArguments, printedBanner);
+
 			// 刷新应用上下文 完成Spring容器的初始化
 			refreshContext(context);
-			// 刷新后操作
+
+			// 刷新容器后做的一些操作（留给用户扩展使用）
 			afterRefresh(context, applicationArguments);
-			// 结束记录启动时间
+
+			// 启动结束，记录启动耗时
 			stopWatch.stop();
 			if (this.logStartupInfo) {
 				new StartupInfoLogger(this.mainApplicationClass).logStarted(getApplicationLog(), stopWatch);
 			}
-			// 事件广播 启动完成了
+
+			// 发布启动完成事件
 			listeners.started(context);
+
+			// 打电话给跑步者
 			callRunners(context, applicationArguments);
 		}
 		catch (Throwable ex) {
@@ -367,13 +415,15 @@ public class SpringApplication {
 		}
 		try {
 			// 监听器运行中
+			// 容器运行中的一个事件
 			listeners.running(context);
 		}
 		catch (Throwable ex) {
 			handleRunFailure(context, ex, exceptionReporters, null);
 			throw new IllegalStateException(ex);
 		}
-		// 返回上下文对象--> Spring容器对象
+
+		// 返回应用程序上下文对象（Spring容器对象）
 		return context;
 	}
 
@@ -452,31 +502,37 @@ public class SpringApplication {
 	}
 
 	private void configureHeadlessProperty() {
-		System.setProperty(SYSTEM_PROPERTY_JAVA_AWT_HEADLESS,
-				System.getProperty(SYSTEM_PROPERTY_JAVA_AWT_HEADLESS, Boolean.toString(this.headless)));
+		System.setProperty(SYSTEM_PROPERTY_JAVA_AWT_HEADLESS/* java.awt.headless */,
+				System.getProperty(SYSTEM_PROPERTY_JAVA_AWT_HEADLESS/* java.awt.headless */, Boolean.toString(this.headless/* 默认为true */)));
 	}
 
 	private SpringApplicationRunListeners getRunListeners(String[] args) {
 		Class<?>[] types = new Class<?>[] { SpringApplication.class, String[].class };
+
 		return new SpringApplicationRunListeners(logger,
-				// getSpringFactoriesInstances 读取spring.factories 文件中key 为 SpringApplicationRunListener 类型的
+				// 读取spring.factories文件中所有的SpringApplicationRunListener类型的对象
 				getSpringFactoriesInstances(SpringApplicationRunListener.class, types, this, args));
 	}
 
 	/**
-	 * 扩展点的加载.
+	 * 加载spring.factories文件中配置的对应类型的所有实现类的全限定类名，然后通过反射实例化对象，最终返回实例化好的对象
+	 *
+	 * 💡提示：当前Spring boot项目下，只有spring-boot、spring-boot-autoconfigure这2个模块下，存在spring.factories文件
+	 *
 	 * @param type 类型
 	 * @param <T> 泛型
 	 * @return 返回实例
 	 */
 	private <T> Collection<T> getSpringFactoriesInstances(Class<T> type) {
+
 		return getSpringFactoriesInstances(type, new Class<?>[] {});
 	}
 
 	/**
-	 * 初始化Initializer.
-	 * SpringFactoriesLoader.loadFactoryNames(type, classLoader)。
-	 *    根据对应的类型加载 spring.factories 文件中的配置信息。
+	 * 加载spring.factories文件中配置的对应类型的所有实现类的全限定类名，然后通过反射实例化对象，最终返回实例化好的对象
+	 *
+	 * 💡提示：当前Spring boot项目下，只有spring-boot、spring-boot-autoconfigure这2个模块下，存在spring.factories文件
+	 *
 	 * @param type 类型
 	 * @param parameterTypes 参数类型
 	 * @param args 参数
@@ -486,22 +542,41 @@ public class SpringApplication {
 	private <T> Collection<T> getSpringFactoriesInstances(Class<T> type, Class<?>[] parameterTypes, Object... args) {
 		// 获取当前上下文类加载器
 		ClassLoader classLoader = getClassLoader();
-		// 获取到的扩展类名存入set集合中防止重复
+
+		// 加载spring.factories文件中的所有信息到内存中，然后根据类型，获取相关的实现类的全限定类名
 		Set<String> names = new LinkedHashSet<>(SpringFactoriesLoader.loadFactoryNames(type, classLoader));
-		// 创建扩展点实例
+
+		// 根据类型的全限定类名，通过反射实例化对象
 		List<T> instances = createSpringFactoriesInstances(type, parameterTypes, classLoader, args, names);
+
+		// 排序
 		AnnotationAwareOrderComparator.sort(instances);
+
 		return instances;
 	}
 
+	/**
+	 * 根据类型的全限定类名，通过反射实例化对象
+	 *
+	 * @param type
+	 * @param parameterTypes
+	 * @param classLoader
+	 * @param args
+	 * @param names				type所有的实现类的全限定类名
+	 * @param <T>
+	 * @return
+	 */
 	@SuppressWarnings("unchecked")
 	private <T> List<T> createSpringFactoriesInstances(Class<T> type, Class<?>[] parameterTypes,
 			ClassLoader classLoader, Object[] args, Set<String> names) {
-		// 创建实例的集合容器
+
+		// 实例集合
 		List<T> instances = new ArrayList<>(names.size());
+
+		// 遍历type的所有实现类的全限定类名
 		for (String name : names) {
 			try {
-				// 通过反射将扩展点实例实例化
+				// 通过反射进行实例化
 				Class<?> instanceClass = ClassUtils.forName(name, classLoader);
 				Assert.isAssignable(type, instanceClass);
 				Constructor<?> constructor = instanceClass.getDeclaredConstructor(parameterTypes);
@@ -633,9 +708,11 @@ public class SpringApplication {
 	 * @see #setApplicationContextClass(Class)
 	 */
 	protected ConfigurableApplicationContext createApplicationContext() {
+
 		Class<?> contextClass = this.applicationContextClass;
 		if (contextClass == null) {
 			try {
+				// 获取容器类型
 				switch (this.webApplicationType) {
 				case SERVLET:
 					contextClass = Class.forName(DEFAULT_SERVLET_WEB_CONTEXT_CLASS);
@@ -1281,8 +1358,8 @@ public class SpringApplication {
 	 * @return the running {@link ApplicationContext}
 	 */
 	public static ConfigurableApplicationContext run(Class<?> primarySource, String... args) {
-		// 调用重载的run方法，将传递的Class对象封装为了一个数组
-		return run(new Class<?>[] { primarySource }, args);
+		// 调用重载的run方法
+		return run(new Class<?>[] { primarySource }/* 将传递的Class对象封装为了一个数组 */, args);
 	}
 
 	/**

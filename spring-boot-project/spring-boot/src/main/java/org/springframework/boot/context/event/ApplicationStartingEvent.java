@@ -22,6 +22,8 @@ import org.springframework.context.ApplicationListener;
 import org.springframework.core.env.Environment;
 
 /**
+ * 应用启动事件
+ *
  * Event published as early as conceivably possible as soon as a {@link SpringApplication}
  * has been started - before the {@link Environment} or {@link ApplicationContext} is
  * available, but after the {@link ApplicationListener}s have been registered. The source
