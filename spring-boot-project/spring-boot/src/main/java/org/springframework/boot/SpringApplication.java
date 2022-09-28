@@ -269,7 +269,7 @@ public class SpringApplication {
 		// 传递的resourceLoader为null
 		this.resourceLoader = resourceLoader;
 		Assert.notNull(primarySources, "PrimarySources must not be null");
-		// 记录主方法的配置类名称
+		// 记录主方法的配置类Class
 		this.primarySources = new LinkedHashSet<>(Arrays.asList(primarySources));
 		// 记录当前项目的类型
 		this.webApplicationType = WebApplicationType.deduceFromClasspath();
