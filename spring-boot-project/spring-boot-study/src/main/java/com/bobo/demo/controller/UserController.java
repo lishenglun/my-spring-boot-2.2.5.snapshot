@@ -10,16 +10,21 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class UserController {
 
+	// 通过ApplicationContext发布事件
 	@Autowired
 	ApplicationContext context;
 
 	@Value("${spring.application.name}")
 	private String applicationName;
 
+	// 触发hello请求的时候，触发一个事件，事件要被监听器捕获到
 	@GetMapping("/hello")
 	public String hello(){
-		// 发布一个 自定义事件
-		// context.publishEvent(new MyEvent(new Object()));
+		// 发布一个自定义事件
+		// 在业务里面通过监听器，帮助我们处理一些行为
+		 context.publishEvent(new MyEvent(new Object()));
+
 		return "hello-->" + applicationName ;
 	}
+
 }

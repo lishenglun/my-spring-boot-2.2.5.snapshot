@@ -180,14 +180,21 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 	public void onApplicationEvent(ApplicationEvent event) {
 		// 如果是 ApplicationEnvironmentPreparedEvent则处理
 		if (event instanceof ApplicationEnvironmentPreparedEvent) {
+			// 加载解析属性文件
 			onApplicationEnvironmentPreparedEvent((ApplicationEnvironmentPreparedEvent) event);
 		}
+
 		// 如果是 ApplicationPreparedEvent 则处理
 		if (event instanceof ApplicationPreparedEvent) {
 			onApplicationPreparedEvent(event);
 		}
 	}
 
+	/**
+	 * 属性文件的加载和解析
+	 *
+	 * @param event
+	 */
 	private void onApplicationEnvironmentPreparedEvent(ApplicationEnvironmentPreparedEvent event) {
 		// 加载系统提供的环境配置的后置处理器
 		List<EnvironmentPostProcessor> postProcessors = loadPostProcessors();

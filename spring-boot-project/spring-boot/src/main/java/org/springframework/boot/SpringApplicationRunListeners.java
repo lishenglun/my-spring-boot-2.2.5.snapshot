@@ -29,6 +29,8 @@ import org.springframework.util.ReflectionUtils;
 /**
  * 存储SpringApplicationRunListener集合，相当于一个广播器
  *
+ * 题外：SpringApplicationRunListeners里面是对spring boot的监听器做了一个包装，本质上是一个spring boot体系内的"广播器/事件发布器"，用来发布事件时，触发spring boot体系内的监听器，也就是触发SpringApplicationRunListener
+ *
  * A collection of {@link SpringApplicationRunListener}. —— {@link SpringApplicationRunListener} 的集合。
  *
  * @author Phillip Webb
@@ -38,9 +40,11 @@ class SpringApplicationRunListeners {
 	private final Log log;
 
 	/**
-	 * 默认获取的SpringApplicationRunListener只有EventPublishingRunListener这1个
+	 * 默认从spring.factories文件中，获取到的SpringApplicationRunListener只有{@link org.springframework.boot.context.event.EventPublishingRunListener}这1个，
+	 * 里面获取了事件广播器，以及所有的ApplicationListener
 	 */
-	// Spring应用程序运行监听器集合
+	// Spring应用程序运行监听器集合（spring boot的监听器做）
+	// 题外：SpringApplicationRunListeners相当于一个广播器，所以广播器里面具备所有监听器的实例
 	private final List<SpringApplicationRunListener> listeners;
 
 	/**

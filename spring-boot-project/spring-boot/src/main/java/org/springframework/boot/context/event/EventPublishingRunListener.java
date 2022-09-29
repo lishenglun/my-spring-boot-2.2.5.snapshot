@@ -49,25 +49,40 @@ public class EventPublishingRunListener/* 事件发布运行监听器 */ impleme
 
 	private final String[] args;
 
-	// List<ApplicatListener> list = null;
-	// 事件广播器
+	// 广播器
 	private final SimpleApplicationEventMulticaster/* 简单应用事件多播 */ initialMulticaster;
 
 	public EventPublishingRunListener(SpringApplication application, String[] args) {
 		this.application = application;
 		this.args = args;
 
-		/* 1、创建广播器SimpleApplicationEventMulticaster */
-		// 创建广播器
+		/* 1、创建广播器(SimpleApplicationEventMulticaster) */
+		// 题外：spring在容器中没有自定义的广播器时，spring默认使用的广播器也是SimpleApplicationEventMulticaster
+		// 题外：⚠️SpringApplicationRunListeners已经作为一个广播器了，为什么这里还要创建一个广播器？
+		// >>> SpringApplicationRunListener是spring boot的监听器接口，与spring无关，是spring boot的监听器体系，
+		// >>> 而SpringApplicationRunListeners也只是作为spring boot的广播器，广播事件，触发的是spring boot体系内的监听器，也就是：SpringApplicationRunListener
+		// >>> 而ApplicationListener是spring体系内的监听器，所以需要创建一个spring体系的广播器，去广播事件，触发spring体系内的监听器！
+		// >>> spring boot和spring它们各自都有一套自己的监听器体系，但是spring boot监听器体系，最终走的是spring的监听器体系
 		this.initialMulticaster = new SimpleApplicationEventMulticaster();
 
 		/* 2、往广播器里面注册所有的监听器 */
 		/**
-		 * 题外：默认的spring.factories文件中有11个监听器
+		 * 题外：默认springboot项目中的spring.factories文件中有11个监听器
+		 *
+		 * {@link org.springframework.boot.cloud.CloudFoundryVcapEnvironmentPostProcessor}
+		 * {@link org.springframework.boot.context.config.ConfigFileApplicationListener}
+		 * {@link org.springframework.boot.context.config.AnsiOutputApplicationListener}
+		 * {@link org.springframework.boot.context.logging.LoggingApplicationListener}
+		 * {@link org.springframework.boot.context.logging.ClasspathLoggingApplicationListener}
+		 * {@link org.springframework.boot.autoconfigure.BackgroundPreinitializer}
+		 * {@link org.springframework.boot.context.config.DelegatingApplicationListener}
+		 * {@link org.springframework.boot.builder.ParentContextCloserApplicationListener}
+		 * {@link org.springframework.boot.ClearCachesApplicationListener}
+		 * {@link org.springframework.boot.context.FileEncodingApplicationListener}
+		 * {@link org.springframework.boot.liquibase.LiquibaseServiceLocatorApplicationListener}
 		 */
-		// 遍历监听器
-		for (ApplicationListener<?>/* 应用程序监听器 */ listener : application.getListeners()/* 获取所有监听器(默认的有11个监听器) */) {
-			// 往事件广播器里面，注册监听器
+		for (ApplicationListener<?>/* 应用程序监听器 */ listener : application.getListeners()/* 获取所有监听器 */) {
+			// 往广播器里面，注册监听器
 			this.initialMulticaster.addApplicationListener(listener);
 		}
 
@@ -79,18 +94,19 @@ public class EventPublishingRunListener/* 事件发布运行监听器 */ impleme
 	}
 
 	/**
-	 * 事件广播器，发布应用启动事件
+	 * 发布应用启动事件，到"监听应用启动事件的监听器"里面去
 	 */
 	@Override
 	public void starting() {
 		// System.out.println("EventPublishingRunListener ----> starting ");
-		// 事件广播器，发布应用启动事件
-		this.initialMulticaster.multicastEvent(new ApplicationStartingEvent/* 应用启动事件 */(this.application, this.args));
+
+		// 发布应用启动事件，到"监听当前事件的监听器"里面去
+		// 注意：⚠️里面会获取到"监听当前事件的监听器"，然后广播事件到"监听当前事件的监听器"里面去
+		this.initialMulticaster/* 事件广播器 */.multicastEvent(new ApplicationStartingEvent/* 应用启动事件 */(this.application, this.args));
 	}
 
 	@Override
 	public void environmentPrepared(ConfigurableEnvironment environment) {
-		// 发布ApplicationEnvironmentPreparedEvent事件，监听该事件的相关监听器会触发
 		this.initialMulticaster
 				.multicastEvent(new ApplicationEnvironmentPreparedEvent(this.application, this.args, environment));
 	}

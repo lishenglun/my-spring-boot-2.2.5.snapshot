@@ -22,6 +22,12 @@ import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.io.support.SpringFactoriesLoader;
 
 /**
+ * Spring应用程序运行监听器
+ *
+ * 题外：这个监听器是spring boot独有的监听器体系，与spring的监听器体系无关
+ *
+ * 题外：事件设计，使得可以在系统启动的每一个关键节点（系统启动的不同的生命周期阶段），让我们都可以在对应的监听器里面去做一些行为！监听器可以监听我们想要的任一阶段的行为
+ *
  * Listener for the {@link SpringApplication} {@code run} method.
  * {@link SpringApplicationRunListener}s are loaded via the {@link SpringFactoriesLoader}
  * and should declare a public constructor that accepts a {@link SpringApplication}
@@ -33,7 +39,7 @@ import org.springframework.core.io.support.SpringFactoriesLoader;
  * @author Andy Wilkinson
  * @since 1.0.0
  */
-public interface SpringApplicationRunListener {
+public interface SpringApplicationRunListener/* Spring应用程序运行监听器 */ {
 
 	/**
 	 * Called immediately when the run method has first started. Can be used for very
