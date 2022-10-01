@@ -10,6 +10,8 @@ import org.springframework.context.annotation.Configuration;
 //@Configuration
 public class StartApp {
 
+	/**
+	 */
 	public static void main(String[] args) {
 		SpringApplication.run(StartApp.class);
 	}

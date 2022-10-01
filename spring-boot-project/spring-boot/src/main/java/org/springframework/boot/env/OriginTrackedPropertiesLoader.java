@@ -72,15 +72,22 @@ class OriginTrackedPropertiesLoader {
 	 */
 	Map<String, OriginTrackedValue> load(boolean expandLists) throws IOException {
 		try (CharacterReader reader = new CharacterReader(this.resource)) {
+
+			// 存放属性文件中的所有配置项
 			Map<String, OriginTrackedValue> result = new LinkedHashMap<>();
+
 			StringBuilder buffer = new StringBuilder();
 			while (reader.read()) {
+				// 获取我们配置的key
 				String key = loadKey(buffer, reader).trim();
+				// 判断是不是有"[]中括号"，有中括号，代表配置了数组
 				if (expandLists && key.endsWith("[]")) {
 					key = key.substring(0, key.length() - 2);
 					int index = 0;
 					do {
+						// 获取我们配置的value值
 						OriginTrackedValue value = loadValue(buffer, reader, true);
+						// 存放结果
 						put(result, key + "[" + (index++) + "]", value);
 						if (!reader.isEndOfLine()) {
 							reader.read();
@@ -89,7 +96,9 @@ class OriginTrackedPropertiesLoader {
 					while (!reader.isEndOfLine());
 				}
 				else {
+					// 获取我们配置的value值
 					OriginTrackedValue value = loadValue(buffer, reader, false);
+					// ⚠️存放结果
 					put(result, key, value);
 				}
 			}

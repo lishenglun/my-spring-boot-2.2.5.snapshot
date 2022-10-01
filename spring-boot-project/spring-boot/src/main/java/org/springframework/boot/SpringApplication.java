@@ -346,6 +346,9 @@ public class SpringApplication {
 	}
 
 	/**
+	 *
+	 * 题外：spring boot启动过程中的核心节点，都会发布相关事件
+	 *
 	 * Run the Spring application, creating and refreshing a new
 	 * {@link ApplicationContext}.
 	 * @param args the application arguments (usually passed from a Java main method)
@@ -379,10 +382,10 @@ public class SpringApplication {
 		 *
 		 * 3、题外：⚠️事件设计，使得可以在系统启动的每一个关键节点（系统启动的不同的生命周期阶段），让我们都可以在对应的监听器里面去做一些行为！监听器可以监听我们想要的任一阶段的行为
 		 */
-		// 读取spring.factories文件中所有的SpringApplicationRunListener(spring程序运行监听器)类型的对象，
+		// 读取spring.factories文件中所有的SpringApplicationRunListener(运行监听器)类型的对象，
 		// 然后创建一个SpringApplicationRunListeners，存储所有获取到的SpringApplicationRunListener类型对象
 		// SpringApplicationRunListeners发布事件时，内部调用的都是SpringApplicationRunListener对应的发布事件方法。
-		// 简单概括：创建一个spring boot的广播器，然后获取spring boot所有的运行监听器，放入到广播器当中（后续由广播器发布事件，就可以触发所有spring boot的运行监听器执行事件）
+		// 简单概括：创建一个spring boot的广播器，然后获取spring boot所有的运行监听器，放入到广播器当中（后续广播器发布事件时，就可以触发所有spring boot的运行监听器）
 		SpringApplicationRunListeners listeners = getRunListeners(args);
 
 		// 🚥发布启动事件
@@ -462,6 +465,8 @@ public class SpringApplication {
 		/* 1、创建并且配置环境信息 */
 		// Create and configure the environment —— 创建和配置环境
 
+		/* 以下是得到系统的一些配置信息，比如jvm的一些参数，系统的账号，当前登陆的用户 */
+
 		// 创建并且配置Environment
 		ConfigurableEnvironment environment = getOrCreateEnvironment();
 		// 配置PropertySources和activeProfiles
@@ -469,6 +474,9 @@ public class SpringApplication {
 		ConfigurationPropertySources.attach(environment);
 
 		/* 2、🚥发布环境准备事件 */
+		/**
+		 * {@link org.springframework.boot.context.config.ConfigFileApplicationListener}
+		 */
 		// 在准备环境信息的时候，会发布一个环境准备事件，
 		listeners.environmentPrepared(environment);
 

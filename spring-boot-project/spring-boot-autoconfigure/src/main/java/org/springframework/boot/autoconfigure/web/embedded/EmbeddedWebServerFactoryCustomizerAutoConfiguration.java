@@ -46,6 +46,8 @@ import org.springframework.core.env.Environment;
 @EnableConfigurationProperties(ServerProperties.class) // 关联的属性文件
 public class EmbeddedWebServerFactoryCustomizerAutoConfiguration {
 
+	/* 基于当前的自动配置，根据条件，加载对应的web服务器（根据我们导入的不同类型，加载对应的自定义的工厂） */
+
 	/**
 	 * Nested configuration if Tomcat is being used.
 	 */

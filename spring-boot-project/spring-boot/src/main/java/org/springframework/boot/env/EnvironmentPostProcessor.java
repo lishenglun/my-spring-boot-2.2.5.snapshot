@@ -21,6 +21,8 @@ import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.Environment;
 
 /**
+ * Environment的后置处理器
+ *
  * Allows for customization of the application's {@link Environment} prior to the
  * application context being refreshed.
  * <p>

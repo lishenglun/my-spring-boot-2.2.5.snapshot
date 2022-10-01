@@ -107,11 +107,13 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 	private static final String DEFAULT_PROPERTIES = "defaultProperties";
 
 	// Note the order is from least to most specific (last one wins)
+	// 这四个目录是默认的查找属性文件的位置
 	private static final String DEFAULT_SEARCH_LOCATIONS = "classpath:/,classpath:/config/,file:./,file:./config/";
 
-	// 默认的属性文件的名称
+	// 默认的属性文件名称
 	private static final String DEFAULT_NAMES = "application";
 
+	// 没有属性文件名称
 	private static final Set<String> NO_SEARCH_NAMES = Collections.singleton(null);
 
 	private static final Bindable<String[]> STRING_ARRAY = Bindable.of(String[].class);
@@ -124,16 +126,17 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 		Set<String> filteredProperties = new HashSet<>();
 		filteredProperties.add("spring.profiles.active");
 		filteredProperties.add("spring.profiles.include");
+
 		LOAD_FILTERED_PROPERTY = Collections.unmodifiableSet(filteredProperties);
 	}
 
 	/**
-	 * The "active profiles" property name.
+	 * The "active profiles" property name. —— "活动配置文件"属性名称
 	 */
 	public static final String ACTIVE_PROFILES_PROPERTY = "spring.profiles.active";
 
 	/**
-	 * The "includes profiles" property name.
+	 * The "includes profiles" property name. —— "包括配置文件"属性名称
 	 */
 	public static final String INCLUDE_PROFILES_PROPERTY = "spring.profiles.include";
 
@@ -141,6 +144,7 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 	 * The "config name" property name.
 	 * 可以自定义属性文件的名称-并不一定是application
 	 */
+	// 自定义的属性文件名称
 	public static final String CONFIG_NAME_PROPERTY = "spring.config.name";
 
 	/**
@@ -174,16 +178,20 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 
 	/**
 	 * 默认的是监听所有的事件.
+	 *
 	 * @param event 事件
 	 */
 	@Override
 	public void onApplicationEvent(ApplicationEvent event) {
-		// 如果是 ApplicationEnvironmentPreparedEvent则处理
+		/* 1、加载解析属性文件 */
+		// 如果是ApplicationEnvironmentPreparedEvent事件，则加载解析属性文件
 		if (event instanceof ApplicationEnvironmentPreparedEvent) {
 			// 加载解析属性文件
+			// 题外：为什么属性文件的加载解析要放到监听器里面？如果所有的功能都放入到run()里面，就没法保证扩展性。而通过监听机制，我就可以方便的扩展更多的功能。
 			onApplicationEnvironmentPreparedEvent((ApplicationEnvironmentPreparedEvent) event);
 		}
 
+		/* 2、 */
 		// 如果是 ApplicationPreparedEvent 则处理
 		if (event instanceof ApplicationPreparedEvent) {
 			onApplicationPreparedEvent(event);
@@ -196,26 +204,40 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 	 * @param event
 	 */
 	private void onApplicationEnvironmentPreparedEvent(ApplicationEnvironmentPreparedEvent event) {
-		// 加载系统提供的环境配置的后置处理器
+		// 获取spring.factories中所有的EnvironmentPostProcessor(环境配置的后置处理器)实例
 		List<EnvironmentPostProcessor> postProcessors = loadPostProcessors();
-		// 添加自身即 ConfigFileApplicationListener 为后置处理器
+		// 添加自身，即ConfigFileApplicationListener，
+		// 因为ConfigFileApplicationListener implements EnvironmentPostProcessor，也是一个EnvironmentPostProcessor
 		postProcessors.add(this);
-		// 原来有4个 现在加了一个需要重新排序
+		// 排序
 		AnnotationAwareOrderComparator.sort(postProcessors);
+
+		/**
+		 * 系统提供那4个不是重点，重点是{@link ConfigFileApplicationListener#postProcessEnvironment}中的这个方法处理，加载和解析了属性文件
+		 */
+		// 遍历EnvironmentPostProcessor，执行EnvironmentPostProcessor#postProcessEnvironment()
 		for (EnvironmentPostProcessor postProcessor : postProcessors) {
-			// 系统提供那4个不是重点，重点是 ConfigFileApplicationListener 中的这个方法处理
 			postProcessor.postProcessEnvironment(event.getEnvironment(), event.getSpringApplication());
 		}
 	}
 
+	/**
+	 * 获取spring.factories中所有的EnvironmentPostProcessor实例
+	 */
 	List<EnvironmentPostProcessor> loadPostProcessors() {
 		return SpringFactoriesLoader.loadFactories(EnvironmentPostProcessor.class, getClass().getClassLoader());
 	}
 
 
+	/**
+	 * 加载解析属性文件
+	 *
+	 * @param environment the environment to post-process
+	 * @param application the application to which the environment belongs
+	 */
 	@Override
 	public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
-		// 单个方法直接进入
+		// 添加属性源
 		addPropertySources(environment, application.getResourceLoader());
 	}
 
@@ -225,15 +247,22 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 	}
 
 	/**
-	 * Add config file property sources to the specified environment.
+	 * Add config file property sources to the specified environment. —— 将配置文件属性源添加到指定环境。
 	 * @param environment the environment to add source to
 	 * @param resourceLoader the resource loader
 	 * @see #addPostProcessors(ConfigurableApplicationContext)
 	 */
 	protected void addPropertySources(ConfigurableEnvironment environment, ResourceLoader resourceLoader) {
-		// 处理我们在属性文件中配置的 ${random.value} ${random.long} ${random.uuid}
-		RandomValuePropertySource.addToEnvironment(environment);
-		// 创建Loader对象同时会完成属性加载器的加载 同时调用load方法  boge_java
+		/* 1、处理Environment中配置的"随机值表达"，生成对应随机值 */
+		// 例如：我们配置的环境属性值：${random.value} ${random.long} ${random.uuid}，这些就是随机值表达式，
+		// >>> 如果我们配置了这些随机值表达式，就可以帮助我们在环境配置中获取随机值
+		RandomValuePropertySource/* 随机值属性源 */.addToEnvironment(environment);
+
+		/* 2、获取spring.factories中配置的"属性资源加载器，进行加载解析属性文件 */
+		/**
+		 * 1、new Loader(environment, resourceLoader)：
+		 * 获取spring.factories中配置的"属性资源加载器"，用来加载解析属性文件
+		 */
 		new Loader(environment, resourceLoader).load();
 	}
 
@@ -322,6 +351,10 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 
 		private final ResourceLoader resourceLoader;
 
+		/**
+		 * spring boot中，默认提供有：PropertiesPropertySourceLoader、YamPropertySourceLoader
+		 */
+		// spring.factories中配置的"属性资源加载器"
 		private final List<PropertySourceLoader> propertySourceLoaders;
 
 		private Deque<Profile> profiles;
@@ -337,44 +370,60 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 		Loader(ConfigurableEnvironment environment, ResourceLoader resourceLoader) {
 			// environment对象的赋值
 			this.environment = environment;
+
 			// 占位符的处理器
 			this.placeholdersResolver = new PropertySourcesPlaceholdersResolver(this.environment);
+
 			// 资源的加载器
 			this.resourceLoader = (resourceLoader != null) ? resourceLoader : new DefaultResourceLoader();
-			// 重点： 获取spring.factories 中配置的 属性加载器 用来加载解析properties文件或者yml文件
+
+			/**
+			 * spring boot中，默认提供有：PropertiesPropertySourceLoader、YamPropertySourceLoader
+			 */
+			// ⚠️获取spring.factories中配置的"属性资源加载器"，用来加载解析属性文件(例如：application.properties)
 			this.propertySourceLoaders = SpringFactoriesLoader.loadFactories(PropertySourceLoader.class,
 					getClass().getClassLoader());
 		}
 
 		void load() {
-			FilteredPropertySource.apply(this.environment, DEFAULT_PROPERTIES, LOAD_FILTERED_PROPERTY,
-					(defaultProperties) -> {
+			FilteredPropertySource/* 过滤的属性源 */.apply(this.environment,
+					DEFAULT_PROPERTIES/* defaultProperties */,
+					LOAD_FILTERED_PROPERTY/* spring.profiles.active、spring.profiles.include */,
+					(defaultProperties/* 一般为null */) -> {
+
+						/* 处理属性文件中配置的多环境 */
 						// 创建默认的profile 链表
 						this.profiles = new LinkedList<>();
 						// 创建已经处理过的profile 类别
 						this.processedProfiles = new LinkedList<>();
 						// 默认设置为未激活
 						this.activatedProfiles = false;
+
 						// 创建loaded对象
 						this.loaded = new LinkedHashMap<>();
-						// 加载配置 profile 的信息，默认为 default
+
+						// 加载配置profile的信息(默认为default)
 						initializeProfiles();
+
 						// 遍历 Profiles，并加载解析
 						while (!this.profiles.isEmpty()) {
 							// 从双向链表中获取一个profile对象
 							Profile profile = this.profiles.poll();
-							// 非默认的就加入，进去看源码即可清楚
+
+							// 非默认的就加入
 							if (isDefaultProfile(profile)) {
 								addProfileToEnvironment(profile.getName());
 							}
-							load(profile, this::getPositiveProfileFilter,
-									addToLoaded(MutablePropertySources::addLast, false));
+							load(profile, this::getPositiveProfileFilter, addToLoaded(MutablePropertySources::addLast, false));
 							this.processedProfiles.add(profile);
 						}
-						// 解析 profile
+
+						// ⚠️解析profile
 						load(null, this::getNegativeProfileFilter, addToLoaded(MutablePropertySources::addFirst, true));
+
 						// 加载默认的属性文件 application.properties
 						addLoadedPropertySources();
+
 						applyActiveProfiles(defaultProperties);
 					});
 		}
@@ -383,28 +432,39 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 		 * Initialize profile information from both the {@link Environment} active
 		 * profiles and any {@code spring.profiles.active}/{@code spring.profiles.include}
 		 * properties that are already set.
+		 * 从{@link Environment}活动配置文件和任何已设置的{@code spring.profiles.active}{@code spring.profiles.include}属性初始化配置文件信息。
 		 */
-		private void initializeProfiles() {
+		private void initializeProfiles/* 初始化配置文件 */() {
 			// The default profile for these purposes is represented as null. We add it
 			// first so that it is processed first and has lowest priority.
+			// 上面翻译：用于这些目的的默认配置文件表示为null。我们首先添加它，以便首先处理它，并具有最低优先级。
+
 			// 首先添加default profile，确保首先被执行，并且优先级最低
 			this.profiles.add(null);
-			// 查找环境中 spring.profiles.active 属性配置的profile
-			Set<Profile> activatedViaProperty = getProfilesFromProperty(ACTIVE_PROFILES_PROPERTY);
-			// 查找环境中 spring.profiles.include 属性配置的profile
-			Set<Profile> includedViaProperty = getProfilesFromProperty(INCLUDE_PROFILES_PROPERTY);
-			//查找环境中除以上两类之外的其他属性配置的 Profile
+
+			// 查找环境中"spring.profiles.active"属性配置的profile
+			Set<Profile> activatedViaProperty = getProfilesFromProperty(ACTIVE_PROFILES_PROPERTY/* spring.profiles.active */);
+
+			// 查找环境中"spring.profiles.include"属性配置的profile
+			Set<Profile> includedViaProperty = getProfilesFromProperty(INCLUDE_PROFILES_PROPERTY/* spring.profiles.include */);
+
+			// 查找环境中除以上两类之外的其他属性配置的 Profile
 			List<Profile> otherActiveProfiles = getOtherActiveProfiles(activatedViaProperty, includedViaProperty);
+
 			//其他属性配置添加到 profiles 队列中
 			this.profiles.addAll(otherActiveProfiles);
 			// Any pre-existing active profiles set via property sources (e.g.
 			// System properties) take precedence over those added in config files.
+			// 上面翻译：通过属性源（例如系统属性）设置的任何预先存在的活动配置文件优先于配置文件中添加的配置文件。
+
 			//将 included 属 性添加到队列中
 			this.profiles.addAll(includedViaProperty);
+
 			//将 activatedViaProperty 添加入 profiles 队列， 并没置 activatedProfiles 为激活状态
-			addActiveProfiles(activatedViaProperty);
+			addActiveProfiles/* 添加活动配置文件 */(activatedViaProperty);
+
 			//如果没有任何 profile 配置，也 就是默认只添加了一个 null,则执行内部逻辑
-			if (this.profiles.size() == 1) { // only has null profile
+			if (this.profiles.size() == 1) { // only has null profile —— 只有空配置文件
 				// AbstractEnvironment 中有默认的 default 属性， 则将 default profile 添加到 profiles 中
 				for (String defaultProfileName : this.environment.getDefaultProfiles()) {
 					Profile defaultProfile = new Profile(defaultProfileName, true);
@@ -414,10 +474,14 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 		}
 
 		private Set<Profile> getProfilesFromProperty(String profilesProperty) {
+			/* 1、如果Environment中不包含profilesProperty名称的属性，则返回null */
 			if (!this.environment.containsProperty(profilesProperty)) {
 				return Collections.emptySet();
 			}
+
+			/* 2、获取Environment中profilesProperty名称的属性 */
 			Binder binder = Binder.get(this.environment);
+			// 获取Environment中profilesProperty名称的属性
 			Set<Profile> profiles = getProfiles(binder, profilesProperty);
 			return new LinkedHashSet<>(profiles);
 		}
@@ -483,16 +547,17 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 		}
 
 		private void load(Profile profile, DocumentFilterFactory filterFactory, DocumentConsumer consumer) {
-			// 获得默认的扫描路径，如果没有特殊指定 ，
-			// 就采用常量 DEFAULT_ SEARCH_ LOCATIONS中定义的4个路 径 。
-			// 而getSearchNames 方 法获得的就是 application 这个默认的配置文件名。
-			// 然后，逐一遍历加载目录路径及其指定文件名的文件。
+			// 获得默认的扫描路径，如果没有特殊指定，就采用常量DEFAULT_SEARCH_LOCATIONS中定义的4个路径
+			// 而getSearchNames方法获得的就是application这个默认的配置文件名。然后，逐一遍历加载目录路径及其指定文件名的文件。
 			// file:./config/ file:./ classpath:/config/ classpath:/ 默认的四个路径
 			getSearchLocations().forEach((location) -> {
+				// 以"/"结尾，代表location是一个目录
 				boolean isFolder = location.endsWith("/");
-				// 去对应的路径下获取属性文件 默认的文件名称为 application
-				Set<String> names = isFolder ? getSearchNames() : NO_SEARCH_NAMES;
-				names.forEach((name) -> load(location, name, profile, filterFactory, consumer));
+
+				// 去对应的路径下获取属性文件的名称（默认的属性文件名称为：application）
+				Set<String> names = isFolder ? getSearchNames() : NO_SEARCH_NAMES/* 没有属性文件名称的意思 */;
+
+				names.forEach((name) -> /* ⚠️ */load(location, name, profile, filterFactory, consumer));
 			});
 		}
 
@@ -511,14 +576,27 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 						+ "a directory, it must end in '/'");
 			}
 			Set<String> processed = new HashSet<>();
-			// 获取properties和yml的资源加载器
+
+			/**
+			 * 1、spring boot中，默认提供有：PropertiesPropertySourceLoader、YamPropertySourceLoader
+			 *
+			 * 2、this.propertySourceLoaders的顺序是PropertiesPropertySourceLoader、YamPropertySourceLoader
+			 */
+			// 遍历属性资源加载器，加载解析属性文件（默认有properties和yml文件的属性资源加载器）
+			// 注意：⚠️4个不同后缀的属性文件的加载顺序在这里体现，顺序是：properties、xml、yml、ymal
 			for (PropertySourceLoader loader : this.propertySourceLoaders) {
-				// 获取对应的加载器加载的后缀 properties xml yml ymal
-				for (String fileExtension : loader.getFileExtensions()) {
+				/**
+				 * PropertiesPropertySourceLoader：支持加载解析.properties、.xml后缀的文件
+				 * YamPropertySourceLoader：支持加载解析.yml、.ymal后缀的文件
+				 */
+				// 获取属性资源加载器中，支持加载的属性文件后缀
+				for (String fileExtension/* 属性文件后缀 */ : loader.getFileExtensions()) {
+					// 添加后缀
+					// processed是一个set集合，为的是防重，只有添加成功了，说明之前没处理过该后缀的属性文件，才进行加载处理该后缀的属性文件，
+					// 也就是说：只处理，没有处理过当前后缀的属性文件；处理过了，就不处理
 					if (processed.add(fileExtension)) {
-						// 加载文件 application.properties application.xml
-						// application.yml application.yaml
-						loadForFileExtension(loader, location + name, "." + fileExtension, profile, filterFactory,
+						// ⚠️加载解析属性文件（application.properties、application.xml、application.yml、application.yaml）
+						loadForFileExtension(loader, location + name, "." + fileExtension/* 属性文件后缀 */, profile, filterFactory,
 								consumer);
 					}
 				}
@@ -532,6 +610,7 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 
 		private void loadForFileExtension(PropertySourceLoader loader, String prefix, String fileExtension,
 				Profile profile, DocumentFilterFactory filterFactory, DocumentConsumer consumer) {
+			// 默认的文档过滤器
 			DocumentFilter defaultFilter = filterFactory.getDocumentFilter(null);
 			DocumentFilter profileFilter = filterFactory.getDocumentFilter(profile);
 			if (profile != null) {
@@ -554,7 +633,10 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 		private void load(PropertySourceLoader loader, String location, Profile profile, DocumentFilter filter,
 				DocumentConsumer consumer) {
 			try {
+				// 根据地址获取资源
 				Resource resource = this.resourceLoader.getResource(location);
+
+				// 不存在该地址资源就跳过
 				if (resource == null || !resource.exists()) {
 					if (this.logger.isTraceEnabled()) {
 						StringBuilder description = getDescription("Skipped missing config ", location, resource,
@@ -572,7 +654,7 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 					return;
 				}
 				String name = "applicationConfig: [" + location + "]";
-				// 加载属性文件信息
+				// ⚠️加载属性文件信息
 				List<Document> documents = loadDocuments(loader, name, resource);
 				if (CollectionUtils.isEmpty(documents)) {
 					if (this.logger.isTraceEnabled()) {
@@ -619,7 +701,7 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 			// 获取缓存的数据
 			List<Document> documents = this.loadDocumentsCache.get(cacheKey);
 			if (documents == null) {
-				// 加载属性文件信息
+				// ⚠️加载属性文件信息
 				List<PropertySource<?>> loaded = loader.load(name, resource);
 				documents = asDocuments(loaded);
 				this.loadDocumentsCache.put(cacheKey, documents);
@@ -682,15 +764,23 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 			this.environment.addActiveProfile(profile);
 		}
 
+		/**
+		 * 获取查找属性文件的目录地址（也就是说，要去哪个目录下面查找属性文件）
+		 */
 		private Set<String> getSearchLocations() {
-			// 如果有自定义的路径就使用自定义的
-			if (this.environment.containsProperty(CONFIG_LOCATION_PROPERTY)) {
+			// 如果有自定义的路径，就会去自定义路径下面去找
+
+			// 如果我们在系统起的时候定义了spring.config.location，也就是自定义了属性文件的存放位置
+			if (this.environment.containsProperty(CONFIG_LOCATION_PROPERTY/* spring.config.location */)) {
 				return getSearchLocations(CONFIG_LOCATION_PROPERTY);
 			}
 			// 否则使用默认的4个路径 file:./config/ file:./ classpath:/config/ classpath:/
-			Set<String> locations = getSearchLocations(CONFIG_ADDITIONAL_LOCATION_PROPERTY);
+			Set<String> locations = getSearchLocations(CONFIG_ADDITIONAL_LOCATION_PROPERTY/* spring.config.additional-location */);
+
+			// 这四个目录是默认的查找属性文件的位置
 			locations.addAll(
-					asResolvedSet(ConfigFileApplicationListener.this.searchLocations, DEFAULT_SEARCH_LOCATIONS));
+					asResolvedSet(ConfigFileApplicationListener.this.searchLocations, DEFAULT_SEARCH_LOCATIONS/* classpath:/,classpath:/config/,file:./,file:./config/ */));
+
 			return locations;
 		}
 
@@ -710,14 +800,18 @@ public class ConfigFileApplicationListener implements EnvironmentPostProcessor, 
 			return locations;
 		}
 
+		/**
+		 * 获取属性文件名称
+		 */
 		private Set<String> getSearchNames() {
-			// 如果我们有自定义配置文件的名称就加载自定义的文件否则就加载默认的属性文件
-			if (this.environment.containsProperty(CONFIG_NAME_PROPERTY)) {
+			// 如果我们有自定义配置文件的名称，就加载自定义的文件，否则就加载默认的属性文件
+			if (this.environment.containsProperty(CONFIG_NAME_PROPERTY/* spring.config.name*//* 自定义的属性文件名称 */ )) {
 				String property = this.environment.getProperty(CONFIG_NAME_PROPERTY);
 				return asResolvedSet(property, null);
 			}
+
 			// 加载默认的属性文件 application
-			return asResolvedSet(ConfigFileApplicationListener.this.names, DEFAULT_NAMES);
+			return asResolvedSet(ConfigFileApplicationListener.this.names, DEFAULT_NAMES/* application *//* 默认的属性文件名称 */);
 		}
 
 		private Set<String> asResolvedSet(String value, String fallback) {

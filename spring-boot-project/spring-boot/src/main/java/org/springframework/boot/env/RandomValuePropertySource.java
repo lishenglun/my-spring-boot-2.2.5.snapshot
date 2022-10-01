@@ -138,8 +138,9 @@ public class RandomValuePropertySource extends PropertySource<Random> {
 	}
 
 	public static void addToEnvironment(ConfigurableEnvironment environment) {
-		environment.getPropertySources().addAfter(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME,
-				new RandomValuePropertySource(RANDOM_PROPERTY_SOURCE_NAME));
+		environment.getPropertySources().addAfter(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME/* systemEnvironment */,
+				new RandomValuePropertySource(RANDOM_PROPERTY_SOURCE_NAME/* random */));
+
 		logger.trace("RandomValuePropertySource add to Environment");
 	}
 

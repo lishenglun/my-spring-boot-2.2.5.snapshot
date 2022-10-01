@@ -62,8 +62,12 @@ import org.springframework.web.filter.ForwardedHeaderFilter;
 @EnableConfigurationProperties(ServerProperties.class) // 关联对应的属性配置类
 // 通过 @Import注解引入一些Web容器
 @Import({ ServletWebServerFactoryAutoConfiguration.BeanPostProcessorsRegistrar.class,
-		ServletWebServerFactoryConfiguration.EmbeddedTomcat.class, // 引入一些对应的容器的类对象
+		// 引入一些对应的容器的类对象
+		// (1)内嵌tomcat
+		ServletWebServerFactoryConfiguration.EmbeddedTomcat.class,
+		// (1)内嵌Jetty
 		ServletWebServerFactoryConfiguration.EmbeddedJetty.class,
+		// (2)内嵌Undertow
 		ServletWebServerFactoryConfiguration.EmbeddedUndertow.class })
 public class ServletWebServerFactoryAutoConfiguration {
 
