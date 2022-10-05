@@ -38,18 +38,28 @@ final class AutoConfigurationMetadataLoader {
 	private AutoConfigurationMetadataLoader() {
 	}
 
+	/**
+	 * 加载META-INF/spring-autoconfigure-metadata.properties文件中的内容，返回一个PropertiesAutoConfigurationMetadata对象
+	 *
+	 * @return		PropertiesAutoConfigurationMetadata对象
+	 */
 	static AutoConfigurationMetadata loadMetadata(ClassLoader classLoader) {
-		return loadMetadata(classLoader, PATH);
+		return loadMetadata(classLoader, PATH/* META-INF/spring-autoconfigure-metadata.properties */);
 	}
 
 	static AutoConfigurationMetadata loadMetadata(ClassLoader classLoader, String path) {
 		try {
+			// 加载META-INF/spring-autoconfigure-metadata.properties文件
 			Enumeration<URL> urls = (classLoader != null) ? classLoader.getResources(path)
 					: ClassLoader.getSystemResources(path);
+
+			// 获取META-INF/spring-autoconfigure-metadata.properties文件中的键值对
 			Properties properties = new Properties();
 			while (urls.hasMoreElements()) {
 				properties.putAll(PropertiesLoaderUtils.loadProperties(new UrlResource(urls.nextElement())));
 			}
+
+			// 创建一个PropertiesAutoConfigurationMetadata对象，包裹properties
 			return loadMetadata(properties);
 		}
 		catch (IOException ex) {
@@ -66,6 +76,7 @@ final class AutoConfigurationMetadataLoader {
 	 */
 	private static class PropertiesAutoConfigurationMetadata implements AutoConfigurationMetadata {
 
+		// META-INF/spring-autoconfigure-metadata.properties文件中的键值对
 		private final Properties properties;
 
 		PropertiesAutoConfigurationMetadata(Properties properties) {
@@ -96,7 +107,7 @@ final class AutoConfigurationMetadataLoader {
 		@Override
 		public Set<String> getSet(String className, String key, Set<String> defaultValue) {
 			String value = get(className, key);
-			return (value != null) ? StringUtils.commaDelimitedListToSet(value) : defaultValue;
+			return (value != null) ? StringUtils.commaDelimitedListToSet(value)/* 逗号分割为Set集合 */ : defaultValue;
 		}
 
 		@Override
@@ -106,6 +117,13 @@ final class AutoConfigurationMetadataLoader {
 
 		@Override
 		public String get(String className, String key, String defaultValue) {
+			/**
+			 * 例如：className = org.springframework.boot.autoconfigure.admin.SpringApplicationAdminJmxAutoConfiguration，key=ConditionalOnClass
+			 *
+			 * className + "." + key = org.springframework.boot.autoconfigure.admin.SpringApplicationAdminJmxAutoConfiguration.ConditionalOnClass
+			 */
+			// 拼接配置类和条件key，获取配置类被加载的条件所对应的全限定类名
+			// 注意：不是所有的配置类都有对应的被加载的条件，有些没有，value就是null
 			String value = this.properties.getProperty(className + "." + key);
 			return (value != null) ? value : defaultValue;
 		}

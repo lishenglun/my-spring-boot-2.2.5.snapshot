@@ -106,8 +106,14 @@ public final class ConditionMessage {
 	 * @see #andCondition(String, Object...)
 	 * @see #forCondition(Class, Object...)
 	 */
-	public Builder andCondition(Class<? extends Annotation> condition, Object... details) {
+	public Builder andCondition(Class<? extends Annotation> condition/* 条件注解，例如：@ConditionalOnClass */, Object... details) {
 		Assert.notNull(condition, "Condition must not be null");
+		/**
+		 * 1、"@" + ClassUtils.getShortName(condition)
+		 * 例如：condition = org.springframework.boot.autoconfigure.condition.ConditionalOnClass
+		 * 那么 ClassUtils.getShortName(condition) = ConditionalOnClass
+		 * 那么 "@" + ClassUtils.getShortName(condition) = @ConditionalOnClass
+		 */
 		return andCondition("@" + ClassUtils.getShortName(condition), details);
 	}
 
@@ -120,12 +126,14 @@ public final class ConditionMessage {
 	 * @see #andCondition(Class, Object...)
 	 * @see #forCondition(String, Object...)
 	 */
-	public Builder andCondition(String condition, Object... details) {
+	public Builder andCondition(String condition/* 条件注解名称，例如：@ConditionalOnClass */, Object... details) {
 		Assert.notNull(condition, "Condition must not be null");
 		String detail = StringUtils.arrayToDelimitedString(details, " ");
+
 		if (StringUtils.hasLength(detail)) {
 			return new Builder(condition + " " + detail);
 		}
+
 		return new Builder(condition);
 	}
 
@@ -176,7 +184,7 @@ public final class ConditionMessage {
 	 * @see #forCondition(String, Object...)
 	 * @see #andCondition(String, Object...)
 	 */
-	public static Builder forCondition(Class<? extends Annotation> condition, Object... details) {
+	public static Builder forCondition(Class<? extends Annotation> condition/* 条件注解，例如：@ConditionalOnClass */, Object... details) {
 		return new ConditionMessage().andCondition(condition, details);
 	}
 
@@ -198,6 +206,7 @@ public final class ConditionMessage {
 	 */
 	public final class Builder {
 
+		// 条件注解名称，例如：@ConditionalOnClass
 		private final String condition;
 
 		private Builder(String condition) {
@@ -243,7 +252,7 @@ public final class ConditionMessage {
 		 * @param article the article found
 		 * @return an {@link ItemsBuilder}
 		 */
-		public ItemsBuilder didNotFind(String article) {
+		public ItemsBuilder didNotFind(String article/* required class */) {
 			return didNotFind(article, article);
 		}
 
@@ -255,7 +264,7 @@ public final class ConditionMessage {
 		 * @param plural the article found in plural form
 		 * @return an {@link ItemsBuilder}
 		 */
-		public ItemsBuilder didNotFind(String singular, String plural) {
+		public ItemsBuilder didNotFind(String singular/* required class */, String plural) {
 			return new ItemsBuilder(this, "did not find", singular, plural);
 		}
 
@@ -314,11 +323,12 @@ public final class ConditionMessage {
 
 		private final String reason;
 
+		// singular = required class
 		private final String singular;
 
 		private final String plural;
 
-		private ItemsBuilder(Builder condition, String reason, String singular, String plural) {
+		private ItemsBuilder(Builder condition, String reason, String singular/* required class */, String plural) {
 			this.condition = condition;
 			this.reason = reason;
 			this.singular = singular;
@@ -354,7 +364,7 @@ public final class ConditionMessage {
 		 * @param items the items (may be {@code null})
 		 * @return a built {@link ConditionMessage}
 		 */
-		public ConditionMessage items(Style style, Object... items) {
+		public ConditionMessage items(Style style, Object... items/* className */) {
 			return items(style, (items != null) ? Arrays.asList(items) : null);
 		}
 
@@ -377,10 +387,13 @@ public final class ConditionMessage {
 		 * @param items the source of the items (may be {@code null})
 		 * @return a built {@link ConditionMessage}
 		 */
-		public ConditionMessage items(Style style, Collection<?> items) {
+		public ConditionMessage items(Style style, Collection<?> items/* className */) {
 			Assert.notNull(style, "Style must not be null");
 			StringBuilder message = new StringBuilder(this.reason);
+
+			// ⚠️
 			items = style.applyTo(items);
+
 			if ((this.condition == null || items.size() <= 1) && StringUtils.hasLength(this.singular)) {
 				message.append(" ").append(this.singular);
 			}
@@ -396,20 +409,23 @@ public final class ConditionMessage {
 	}
 
 	/**
-	 * Render styles.
+	 * Render styles. —— 渲染样式
 	 */
 	public enum Style {
 
-		NORMAL {
+		NORMAL/* 普通 */ {
 			@Override
 			protected Object applyToItem(Object item) {
+				//
 				return item;
 			}
 		},
 
-		QUOTE {
+		QUOTE/* 引用 */ {
 			@Override
 			protected String applyToItem(Object item) {
+				// item不为null，就给item加上双引号，否则返回null
+				// 例如：item = com.rabbitmq.client.Channel，得到的是：'com.rabbitmq.client.Channel'
 				return (item != null) ? "'" + item + "'" : null;
 			}
 		};
@@ -417,7 +433,7 @@ public final class ConditionMessage {
 		public Collection<?> applyTo(Collection<?> items) {
 			List<Object> result = new ArrayList<>();
 			for (Object item : items) {
-				result.add(applyToItem(item));
+				result.add(/* ⚠️ */applyToItem(item));
 			}
 			return result;
 		}

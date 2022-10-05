@@ -53,19 +53,25 @@ class AutoConfigurationSorter {
 	}
 
 	List<String> getInPriorityOrder(Collection<String> classNames) {
+
 		AutoConfigurationClasses classes = new AutoConfigurationClasses(this.metadataReaderFactory,
 				this.autoConfigurationMetadata, classNames);
+
 		List<String> orderedClassNames = new ArrayList<>(classNames);
-		// Initially sort alphabetically
+
+		// Initially sort alphabetically —— 最初按字母顺序排序
 		Collections.sort(orderedClassNames);
-		// Then sort by order
+
+		// Then sort by order —— 然后按顺序排序
 		orderedClassNames.sort((o1, o2) -> {
 			int i1 = classes.get(o1).getOrder();
 			int i2 = classes.get(o2).getOrder();
 			return Integer.compare(i1, i2);
 		});
-		// Then respect @AutoConfigureBefore @AutoConfigureAfter
+
+		// Then respect @AutoConfigureBefore @AutoConfigureAfter —— 然后尊重@AutoConfigureBefore @AutoConfigureAfter
 		orderedClassNames = sortByAnnotation(classes, orderedClassNames);
+
 		return orderedClassNames;
 	}
 

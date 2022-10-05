@@ -48,9 +48,14 @@ import org.springframework.data.repository.Repository;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@Inherited //
+// 编译时构建索引的
+@Inherited
+// 内部有价值的就是被一个@Configuration修饰，用来表示@SpringBootApplication修饰的类是一个配置类！
 @SpringBootConfiguration
+// ⚠️开启自动装配
+// 题外：也是@Enable模块的注解
 @EnableAutoConfiguration
+// 如果没有指定扫描路径，那么默认扫描的是该注解所修饰的类所在的包及其子包下面所有被@Component修饰的类
 @ComponentScan(excludeFilters = { @Filter(type = FilterType.CUSTOM, classes = TypeExcludeFilter.class),
 		@Filter(type = FilterType.CUSTOM, classes = AutoConfigurationExcludeFilter.class) })
 public @interface SpringBootApplication {

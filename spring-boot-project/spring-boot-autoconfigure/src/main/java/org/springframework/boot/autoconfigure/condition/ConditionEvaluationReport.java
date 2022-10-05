@@ -38,7 +38,9 @@ import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
 /**
- * Records condition evaluation details for reporting and logging.
+ * 条件评估报告
+ *
+ * Records condition evaluation details for reporting and logging. —— 记录条件评估的详细信息，以进行报告和记录。
  *
  * @author Greg Turnquist
  * @author Dave Syer
@@ -47,7 +49,7 @@ import org.springframework.util.ObjectUtils;
  * @author Stephane Nicoll
  * @since 1.0.0
  */
-public final class ConditionEvaluationReport {
+public final class ConditionEvaluationReport/* 条件评估报告 */ {
 
 	private static final String BEAN_NAME = "autoConfigurationReport";
 
@@ -71,7 +73,8 @@ public final class ConditionEvaluationReport {
 	}
 
 	/**
-	 * Record the occurrence of condition evaluation.
+	 * Record the occurrence of condition evaluation. —— 记录条件评估的发生
+	 *
 	 * @param source the source of the condition (class or method name)
 	 * @param condition the condition evaluated
 	 * @param outcome the condition outcome
@@ -80,11 +83,14 @@ public final class ConditionEvaluationReport {
 		Assert.notNull(source, "Source must not be null");
 		Assert.notNull(condition, "Condition must not be null");
 		Assert.notNull(outcome, "Outcome must not be null");
+
 		this.unconditionalClasses.remove(source);
+
 		if (!this.outcomes.containsKey(source)) {
 			this.outcomes.put(source, new ConditionAndOutcomes());
 		}
 		this.outcomes.get(source).add(condition, outcome);
+
 		this.addedAncestorOutcomes = false;
 	}
 
@@ -181,19 +187,31 @@ public final class ConditionEvaluationReport {
 	public static ConditionEvaluationReport get(ConfigurableListableBeanFactory beanFactory) {
 		synchronized (beanFactory) {
 			ConditionEvaluationReport report;
-			if (beanFactory.containsSingleton(BEAN_NAME)) {
+			// 容器中存在beanName为autoConfigurationReport的bean
+			if (beanFactory.containsSingleton(BEAN_NAME/* autoConfigurationReport */)) {
+				// 从容器中获取beanName为autoConfigurationReport，类型为ConditionEvaluationReport的bean对象
 				report = beanFactory.getBean(BEAN_NAME, ConditionEvaluationReport.class);
 			}
+			// 容器中不存在
 			else {
+				// 创建一个ConditionEvaluationReport
 				report = new ConditionEvaluationReport();
+				// 放入容器中，beanName为autoConfigurationReport
 				beanFactory.registerSingleton(BEAN_NAME, report);
 			}
-			locateParent(beanFactory.getParentBeanFactory(), report);
+			locateParent(beanFactory.getParentBeanFactory()/* 获取父容器 */, report);
 			return report;
 		}
 	}
 
+	/**
+	 * 查找当前ConditionEvaluationReport的父ConditionEvaluationReport
+	 *
+	 * @param beanFactory		父容器，一般为null
+	 * @param report			当前ConditionEvaluationReport
+	 */
 	private static void locateParent(BeanFactory beanFactory, ConditionEvaluationReport report) {
+		// 题外：这里的beanFactory代表的是父容器，一般为null，所以这个if条件不会成立，不会走里面的逻辑
 		if (beanFactory != null && report.parent == null && beanFactory.containsBean(BEAN_NAME)) {
 			report.parent = beanFactory.getBean(BEAN_NAME, ConditionEvaluationReport.class);
 		}

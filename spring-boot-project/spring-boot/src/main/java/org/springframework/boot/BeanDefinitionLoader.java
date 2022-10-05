@@ -125,6 +125,7 @@ class BeanDefinitionLoader {
 	int load() {
 		int count = 0;
 		for (Object source : this.sources) {
+			// ⚠️注册source对应的bd
 			count += load(source);
 		}
 		return count;
@@ -132,31 +133,46 @@ class BeanDefinitionLoader {
 
 	private int load(Object source) {
 		Assert.notNull(source, "Source must not be null");
+		// Class
 		if (source instanceof Class<?>) {
+			// 注册source对应的bd
 			return load((Class<?>) source);
 		}
+		// Resource
 		if (source instanceof Resource) {
 			return load((Resource) source);
 		}
+		// Package
 		if (source instanceof Package) {
 			return load((Package) source);
 		}
+		// CharSequence
 		if (source instanceof CharSequence) {
 			return load((CharSequence) source);
 		}
 		throw new IllegalArgumentException("Invalid source type " + source.getClass());
 	}
 
+	/**
+	 * 注册source对应的bd
+	 *
+	 * @param source
+	 * @return
+	 */
 	private int load(Class<?> source) {
 		if (isGroovyPresent() && GroovyBeanDefinitionSource.class.isAssignableFrom(source)) {
-			// Any GroovyLoaders added in beans{} DSL can contribute beans here
+			// Any GroovyLoaders added in beans{} DSL can contribute beans here —— 在beans{} DSL中添加的任何GroovyLoaders都可以在此处贡献bean
 			GroovyBeanDefinitionSource loader = BeanUtils.instantiateClass(source, GroovyBeanDefinitionSource.class);
 			load(loader);
 		}
+		// 判断source上面是否存在@Component，从而得知是否是一个组件
+		// 题外：如果type上面用@SpringBootApplication修饰，那么是存在@Component！
 		if (isComponent(source)) {
+			// ⚠️注册source对应的bd
 			this.annotatedReader.register(source);
 			return 1;
 		}
+
 		return 0;
 	}
 
@@ -273,14 +289,35 @@ class BeanDefinitionLoader {
 		return Package.getPackage(source.toString());
 	}
 
+	/**
+	 * 判断type上面是否存在@Component，从而得知是否是一个组件
+	 *
+	 * 题外：如果type上面用@SpringBootApplication修饰，那么是存在@Component！
+	 *
+	 * @param type
+	 * @return
+	 */
 	private boolean isComponent(Class<?> type) {
 		// This has to be a bit of a guess. The only way to be sure that this type is
 		// eligible is to make a bean definition out of it and try to instantiate it.
-		if (MergedAnnotations.from(type, SearchStrategy.TYPE_HIERARCHY).isPresent(Component.class)) {
+		// 上面翻译：这得有点猜想了。确保这种类型符合条件的唯一方法是用它定义一个 bean 并尝试实例化它。
+
+		/**
+		 * 1、如果type是SpringApplication.run(type)中的type，type上面用@SpringBootApplication修饰，
+		 *
+		 * 由于@SpringBootApplication当中被@SpringBootConfiguration修饰；@SpringBootConfiguration当中被@Configuration修饰；@Configuration被@Component修饰；
+		 * 所以type上面用@SpringBootApplication修饰，type上面就存在@Component，返回true
+		 */
+		// 怕断类上是否存在@Component
+		if (MergedAnnotations.from(type, SearchStrategy.TYPE_HIERARCHY/* 类型层次结构 */).isPresent(Component.class)) {
+			// ⚠️
 			return true;
 		}
+
 		// Nested anonymous classes are not eligible for registration, nor are groovy
 		// closures
+		// 上面翻译：嵌套匿名类不符合注册条件，groovy闭包也不符合注册条件
+
 		return !type.getName().matches(".*\\$_.*closure.*") && !type.isAnonymousClass()
 				&& type.getConstructors() != null && type.getConstructors().length != 0;
 	}

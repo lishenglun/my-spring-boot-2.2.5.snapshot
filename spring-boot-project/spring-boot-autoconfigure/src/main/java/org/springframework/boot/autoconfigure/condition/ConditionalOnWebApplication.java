@@ -51,17 +51,17 @@ public @interface ConditionalOnWebApplication {
 	enum Type {
 
 		/**
-		 * Any web application will match.
+		 * Any web application will match. —— 任何 Web 应用程序都将匹配。
 		 */
 		ANY,
 
 		/**
-		 * Only servlet-based web application will match.
+		 * Only servlet-based web application will match. —— 只有基于 servlet 的 Web 应用程序会匹配。
 		 */
 		SERVLET,
 
 		/**
-		 * Only reactive-based web application will match.
+		 * Only reactive-based web application will match. —— 只有基于响应式的 Web 应用程序才会匹配。
 		 */
 		REACTIVE
 

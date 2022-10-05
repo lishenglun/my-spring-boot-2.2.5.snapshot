@@ -82,29 +82,64 @@ class OnBeanCondition extends FilteringSpringBootCondition implements Configurat
 	@Override
 	protected final ConditionOutcome[] getOutcomes(String[] autoConfigurationClasses,
 			AutoConfigurationMetadata autoConfigurationMetadata) {
+
 		ConditionOutcome[] outcomes = new ConditionOutcome[autoConfigurationClasses.length];
+
 		for (int i = 0; i < outcomes.length; i++) {
 			String autoConfigurationClass = autoConfigurationClasses[i];
 			if (autoConfigurationClass != null) {
+				// 拼接【autoConfigurationClass.ConditionalOnBean】，然后获取其在spring-autoconfigure-metadata.properties文件中，对应的被加载的条件的全限定类名称
+				// 题外：可以配置多个，以逗号分割
 				Set<String> onBeanTypes = autoConfigurationMetadata.getSet(autoConfigurationClass, "ConditionalOnBean");
+				// 判断【配置类.ConditionalOnBean】中的className是否存在，
+				// 只要不存在【配置类.ConditionalOnBean】中的某一个className，则返回一个不匹配的ConditionOutcome，代表不匹配；
+				// 如果【配置类.ConditionalOnBean】中的className都存在，则返回null
 				outcomes[i] = getOutcome(onBeanTypes, ConditionalOnBean.class);
+
 				if (outcomes[i] == null) {
+
+					// 拼接【autoConfigurationClass.ConditionalOnSingleCandidate】，然后获取spring-autoconfigure-metadata.properties文件中，对应的被加载的条件的全限定类名称
 					Set<String> onSingleCandidateTypes = autoConfigurationMetadata.getSet(autoConfigurationClass,
 							"ConditionalOnSingleCandidate");
+					// 判断【配置类.ConditionalOnSingleCandidate】中的className是否存在，
+					// 只要不存在【配置类.ConditionalOnSingleCandidate】中的某一个className，则返回一个不匹配的ConditionOutcome，代表不匹配；
+					// 如果【配置类.ConditionalOnSingleCandidate】中的className都存在，则返回null
 					outcomes[i] = getOutcome(onSingleCandidateTypes, ConditionalOnSingleCandidate.class);
 				}
 			}
+
 		}
+
 		return outcomes;
 	}
 
+	/**
+	 * 判断【requiredBeanTypes】中的className是否存在，
+	 *
+	 * 只要不存在【requiredBeanTypes】中的某一个className，则返回一个不匹配的ConditionOutcome，代表不匹配；
+	 * 如果【requiredBeanTypes】中的className都存在，则返回null
+	 *
+	 * @param requiredBeanTypes				必须存在的bean类型
+	 *                                      例如：在spring-autoconfigure-metadata.properties文件中，【配置类.ConditionalOnBean】对应的被加载的条件的全限定类名称
+	 *                                      例如：在spring-autoconfigure-metadata.properties文件中，【配置类.ConditionalOnSingleCandidate】对应的被加载的条件的全限定类名称
+	 *
+	 * @param annotation					条件注解，例如：@ConditionalOnBean
+	 */
 	private ConditionOutcome getOutcome(Set<String> requiredBeanTypes, Class<? extends Annotation> annotation) {
+		// 过滤出【配置类.ConditionalOnBean】中不存在的className
 		List<String> missing = filter(requiredBeanTypes, ClassNameFilter.MISSING, getBeanClassLoader());
+
+		// 存在"【配置类.ConditionalOnBean】中不存在的className"，
+		// 也就是说，不存在【配置类.ConditionalOnBean】中的className，则构建一个不匹配的ConditionOutcome的返回
 		if (!missing.isEmpty()) {
+			// 条件消息
 			ConditionMessage message = ConditionMessage.forCondition(annotation)
 					.didNotFind("required type", "required types").items(Style.QUOTE, missing);
+			// 构建一个不匹配的ConditionOutcome
 			return ConditionOutcome.noMatch(message);
 		}
+
+		// 返回null，代表匹配
 		return null;
 	}
 

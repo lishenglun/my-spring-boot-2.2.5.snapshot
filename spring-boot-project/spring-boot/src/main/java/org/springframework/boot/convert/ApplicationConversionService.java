@@ -62,6 +62,8 @@ public class ApplicationConversionService extends FormattingConversionService {
 	}
 
 	/**
+	 * 获取ConversionService：ApplicationConversionService。不存在就创建。
+	 *
 	 * Return a shared default application {@code ConversionService} instance, lazily
 	 * building it once needed.
 	 * <p>
@@ -73,15 +75,18 @@ public class ApplicationConversionService extends FormattingConversionService {
 	 */
 	public static ConversionService getSharedInstance() {
 		ApplicationConversionService sharedInstance = ApplicationConversionService.sharedInstance;
+
 		if (sharedInstance == null) {
 			synchronized (ApplicationConversionService.class) {
 				sharedInstance = ApplicationConversionService.sharedInstance;
 				if (sharedInstance == null) {
+					// ⚠️创建一个ConversionService：ApplicationConversionService
 					sharedInstance = new ApplicationConversionService();
 					ApplicationConversionService.sharedInstance = sharedInstance;
 				}
 			}
 		}
+
 		return sharedInstance;
 	}
 

@@ -28,6 +28,7 @@ import org.springframework.util.ObjectUtils;
  */
 public class ConditionOutcome {
 
+	// 是否匹配（true：匹配；false：不匹配）
 	private final boolean match;
 
 	private final ConditionMessage message;
@@ -96,7 +97,7 @@ public class ConditionOutcome {
 	 * @return the {@link ConditionOutcome}
 	 */
 	public static ConditionOutcome noMatch(ConditionMessage message) {
-		return new ConditionOutcome(false, message);
+		return new ConditionOutcome(false/* 代表当前不匹配 */, message);
 	}
 
 	/**

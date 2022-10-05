@@ -195,6 +195,10 @@ public class SpringApplication {
 
 	private static final Log logger = LogFactory.getLog(SpringApplication.class);
 
+	/**
+	 * 例如：SpringApplication.run(Boot2StartApp.class)中的Boot2StartApp
+	 */
+	// 记录主方法的配置类Class
 	private Set<Class<?>> primarySources;
 
 	private Set<String> sources = new LinkedHashSet<>();
@@ -203,16 +207,19 @@ public class SpringApplication {
 
 	private Banner.Mode bannerMode = Banner.Mode.CONSOLE;
 
+	// 是否记录启动信息（true：记录；false：不记录）
 	private boolean logStartupInfo = true;
 
 	private boolean addCommandLineProperties = true;
-
+	// 是否需要添加转换服务
 	private boolean addConversionService = true;
 
 	private Banner banner;
 
+	// 资源加载器
 	private ResourceLoader resourceLoader;
 
+	// beanName生成器
 	private BeanNameGenerator beanNameGenerator;
 
 	private ConfigurableEnvironment environment;
@@ -225,7 +232,20 @@ public class SpringApplication {
 
 	private boolean registerShutdownHook = true;
 
-	// 存储spring.factories文件中的"初始化器"对象（实例化好的）
+	/**
+	 * 默认有7个，分别是：
+	 * （1）spring-boot模块中spring.factories中的5个：
+	 * {@link org.springframework.boot.context.ConfigurationWarningsApplicationContextInitializer}
+	 * {@link org.springframework.boot.context.ContextIdApplicationContextInitializer}
+	 * {@link org.springframework.boot.context.config.DelegatingApplicationContextInitializer}
+	 * {@link org.springframework.boot.rsocket.context.RSocketPortInfoApplicationContextInitializer}
+	 * {@link org.springframework.boot.web.context.ServerPortInfoApplicationContextInitializer}
+	 *
+	 * （2）spring-boot-autoconfigure模块中spring.factories中的2个：
+	 * {@link org.springframework.boot.autoconfigure.SharedMetadataReaderFactoryContextInitializer}
+	 * {@link org.springframework.boot.autoconfigure.logging.ConditionEvaluationReportLoggingListener}
+	 */
+	// 存储spring.factories文件中的"ApplicationContextInitializer(初始化器)"对象
 	private List<ApplicationContextInitializer<?>> initializers;
 
 	/**
@@ -254,6 +274,7 @@ public class SpringApplication {
 
 	private boolean isCustomEnvironment = false;
 
+	// 是否是懒加载的
 	private boolean lazyInitialization = false;
 
 	/**
@@ -412,11 +433,11 @@ public class SpringApplication {
 			exceptionReporters = getSpringFactoriesInstances(SpringBootExceptionReporter.class,
 					new Class[] { ConfigurableApplicationContext.class }, context);
 
-			// 刷新容器前做的一些操作：准备上下文环境
+			// 刷新容器前做的一些操作：对容器做的一些准备工作，准备容器（不是留给用户扩展的）
 			// 题外：里面也会发布事件
-			prepareContext(context, environment, listeners, applicationArguments, printedBanner);
+			prepareContext/* 准备上下文 */(context, environment, listeners, applicationArguments, printedBanner);
 
-			// 刷新应用上下文 完成Spring容器的初始化
+			// ⚠️刷新应用上下文 完成Spring容器的初始化
 			refreshContext(context);
 
 			// 刷新容器后做的一些操作（留给用户扩展使用）
@@ -503,37 +524,70 @@ public class SpringApplication {
 		}
 	}
 
-	private void prepareContext(ConfigurableApplicationContext context, ConfigurableEnvironment environment,
+	/**
+	 * 容器刷新前，对容器做的一些准备工作
+	 *
+	 * @param context									上下文
+	 * @param environment								ConfigurableEnvironment
+	 * @param listeners									spring.factories文件中的所有SpringApplicationRunListener
+	 * @param applicationArguments						应用程序的参数持有对象
+	 * @param printedBanner								Banner
+	 */
+	private void prepareContext/* 准备容器 */(ConfigurableApplicationContext context/* 上下文 */, ConfigurableEnvironment environment,
 			SpringApplicationRunListeners listeners, ApplicationArguments applicationArguments, Banner printedBanner) {
+
+		/* 1、往context中设置Environment */
 		context.setEnvironment(environment);
+
+		/* 2、如果存在，则往context中添加beanNameGenerator、resourceLoader、ConversionService(ApplicationConversionService) */
 		postProcessApplicationContext(context);
+
+		/* 3、调用spring.factories文件中的所有的(初始化器)ApplicationContextInitializer#initialize()，处理ConfigurableApplicationContext */
 		applyInitializers(context);
 
-		// 🚥️发布准备上下文事件
+		/* 4、🚥️发布准备上下文事件 */
 		listeners.contextPrepared(context);
-		if (this.logStartupInfo) {
+
+		/* 5、记录启动信息和配置文件信息 */
+		if (this.logStartupInfo/* 是否记录启动信息 */) {
+			// 记录启动信息
 			logStartupInfo(context.getParent() == null);
+			// 记录启动配置文件信息
 			logStartupProfileInfo(context);
 		}
+
+		/* 6、获取context中的beanFactory，往beanFactory中注册"spring应用程序参数对象"、Banner对象、是否允许bd覆盖的标识 */
 		// Add boot specific singleton beans —— 添加引导特定的单例bean
+
+		// (1)获取context中的beanFactory
+		// GenericApplicationContext#getBeanFactory()
 		ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
-		beanFactory.registerSingleton("springApplicationArguments", applicationArguments);
+		// (2)注册"spring应用程序的参数持有对象"
+		beanFactory.registerSingleton("springApplicationArguments"/* spring应用程序参数 */, applicationArguments);
+		// (3)注册springBootBanner对象
 		if (printedBanner != null) {
 			beanFactory.registerSingleton("springBootBanner", printedBanner);
 		}
+		// (4)设置是否允许bd覆盖的标识
 		if (beanFactory instanceof DefaultListableBeanFactory) {
 			((DefaultListableBeanFactory) beanFactory)
-					.setAllowBeanDefinitionOverriding(this.allowBeanDefinitionOverriding);
+					.setAllowBeanDefinitionOverriding/* 设置允许bd覆盖 */(this.allowBeanDefinitionOverriding);
 		}
-		if (this.lazyInitialization) {
+
+		/* 7、如果是懒加载的，则往context中添加一个LazyInitializationBeanFactoryPostProcessor */
+		if (this.lazyInitialization/* 是否是懒加载的 */) {
 			context.addBeanFactoryPostProcessor(new LazyInitializationBeanFactoryPostProcessor());
 		}
+
+		/* 8、注册了SpringApplication.run(class...)中的Class bd */
 		// Load the sources —— 加载资源
+		// 获取SpringApplication.run(class...)中传入的类
 		Set<Object> sources = getAllSources();
 		Assert.notEmpty(sources, "Sources must not be empty");
+		// ⚠️注册source对应的bd（也就是注册了SpringApplication.run(class...)中的Class bd）
 		load(context, sources.toArray(new Object[0]));
 
-		// 🚥发布上下文加载完成事件
+		/* 9、🚥发布上下文加载完成事件 */
 		listeners.contextLoaded(context);
 	}
 
@@ -796,27 +850,45 @@ public class SpringApplication {
 	/**
 	 * Apply any relevant post processing the {@link ApplicationContext}. Subclasses can
 	 * apply additional processing as required.
+	 *
+	 * 应用任何相关的后处理 {@link ApplicationContext}。子类可以根据需要应用额外的处理。
+	 *
 	 * @param context the application context
 	 */
-	protected void postProcessApplicationContext(ConfigurableApplicationContext context) {
+	protected void postProcessApplicationContext/* 后置处理ApplicationContext */(ConfigurableApplicationContext context) {
+		/* 1、存在beanName生成器，就往context中注入beanName生成器 */
 		if (this.beanNameGenerator != null) {
-			context.getBeanFactory().registerSingleton(AnnotationConfigUtils.CONFIGURATION_BEAN_NAME_GENERATOR,
+			context.getBeanFactory().registerSingleton(
+					AnnotationConfigUtils.CONFIGURATION_BEAN_NAME_GENERATOR/* org.springframework.context.annotation.internalConfigurationBeanNameGenerator */,
 					this.beanNameGenerator);
 		}
+
+		/* 2、存在资源加载器 */
 		if (this.resourceLoader != null) {
+			// （1）资源加载器
 			if (context instanceof GenericApplicationContext) {
 				((GenericApplicationContext) context).setResourceLoader(this.resourceLoader);
 			}
+			// （2）类加载器
 			if (context instanceof DefaultResourceLoader) {
 				((DefaultResourceLoader) context).setClassLoader(this.resourceLoader.getClassLoader());
 			}
 		}
-		if (this.addConversionService) {
-			context.getBeanFactory().setConversionService(ApplicationConversionService.getSharedInstance());
+
+		/* 3、需要添加转换服务，则往context添加转换服务 */
+		if (this.addConversionService/* 是否需要添加转换服务 */) {
+			/**
+			 * 1、ApplicationConversionService.getSharedInstance：
+			 * 获取ConversionService：ApplicationConversionService。不存在就创建。
+			 */
+			// 往context添加转换服务(ConversionService)：ApplicationConversionService
+			context.getBeanFactory().setConversionService(ApplicationConversionService.getSharedInstance/* 获取共享实例 */());
 		}
 	}
 
 	/**
+	 * 调用spring.factories文件中的所有的(初始化器)ApplicationContextInitializer#initialize()，处理ConfigurableApplicationContext
+	 *
 	 * Apply any {@link ApplicationContextInitializer}s to the context before it is
 	 * refreshed.
 	 * @param context the configured ApplicationContext (not refreshed yet)
@@ -824,10 +896,28 @@ public class SpringApplication {
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	protected void applyInitializers(ConfigurableApplicationContext context) {
-		for (ApplicationContextInitializer initializer : getInitializers()) {
+		/* 1、调用spring.factories文件中所有的(初始化器)ApplicationContextInitializer#initialize()，处理ConfigurableApplicationContext */
+		/**
+		 * 1、getInitializers()：
+		 * 获取spring.factories文件中的"ApplicationContextInitializer(初始化器)"。默认有7个，分别是：
+		 * （1）spring-boot模块中spring.factories中的5个：
+		 * {@link org.springframework.boot.context.ConfigurationWarningsApplicationContextInitializer}
+		 * {@link org.springframework.boot.context.ContextIdApplicationContextInitializer}
+		 * {@link org.springframework.boot.context.config.DelegatingApplicationContextInitializer}
+		 * {@link org.springframework.boot.rsocket.context.RSocketPortInfoApplicationContextInitializer}
+		 * {@link org.springframework.boot.web.context.ServerPortInfoApplicationContextInitializer}
+		 *
+		 * （2）spring-boot-autoconfigure模块中spring.factories中的2个：
+		 * {@link org.springframework.boot.autoconfigure.SharedMetadataReaderFactoryContextInitializer}
+		 * {@link org.springframework.boot.autoconfigure.logging.ConditionEvaluationReportLoggingListener}
+		 */
+		for (ApplicationContextInitializer initializer/* 初始化器 */: getInitializers()) {
+			// 获取ApplicationContextInitializer实现类的Class
 			Class<?> requiredType = GenericTypeResolver.resolveTypeArgument(initializer.getClass(),
 					ApplicationContextInitializer.class);
-			Assert.isInstanceOf(requiredType, context, "Unable to call initializer.");
+			// (忽略)断言提供的对象是提供的类的实例。Assert.instanceOf(Foo.class, foo, "Foo 预期");
+			Assert.isInstanceOf(requiredType, context, "Unable to call initializer."/* 无法调用初始化程序。 */);
+			// ⚠️调用ApplicationContextInitializer#initialize()处理ConfigurableApplicationContext
 			initializer.initialize(context);
 		}
 	}
@@ -844,8 +934,9 @@ public class SpringApplication {
 	}
 
 	/**
-	 * Called to log active profile information.
-	 * @param context the application context
+	 * Called to log active profile information. —— 调用以记录活动的配置文件信息
+	 *
+	 * @param context the application context —— 应用程序上下文
 	 */
 	protected void logStartupProfileInfo(ConfigurableApplicationContext context) {
 		Log log = getApplicationLog();
@@ -853,11 +944,11 @@ public class SpringApplication {
 			String[] activeProfiles = context.getEnvironment().getActiveProfiles();
 			if (ObjectUtils.isEmpty(activeProfiles)) {
 				String[] defaultProfiles = context.getEnvironment().getDefaultProfiles();
-				log.info("No active profile set, falling back to default profiles: "
+				log.info("No active profile set, falling back to default profiles: " /* 没有活动的配置文件集，回退到默认配置文件： */
 						+ StringUtils.arrayToCommaDelimitedString(defaultProfiles));
 			}
 			else {
-				log.info("The following profiles are active: "
+				log.info("The following profiles are active: " /* 以下配置文件处于活动状态： */
 						+ StringUtils.arrayToCommaDelimitedString(activeProfiles));
 			}
 		}
@@ -875,15 +966,17 @@ public class SpringApplication {
 	}
 
 	/**
-	 * Load beans into the application context.
+	 * Load beans into the application context. —— 将bean加载到应用程序上下文中。
 	 * @param context the context to load beans into
 	 * @param sources the sources to load
+	 *                SpringApplication.run(class...)中传入的类
 	 */
 	protected void load(ApplicationContext context, Object[] sources) {
 		if (logger.isDebugEnabled()) {
 			logger.debug("Loading source " + StringUtils.arrayToCommaDelimitedString(sources));
 		}
-		BeanDefinitionLoader loader = createBeanDefinitionLoader(getBeanDefinitionRegistry(context), sources);
+		BeanDefinitionLoader loader = createBeanDefinitionLoader(getBeanDefinitionRegistry(context)/* BeanDefinitionRegistry */, sources);
+
 		if (this.beanNameGenerator != null) {
 			loader.setBeanNameGenerator(this.beanNameGenerator);
 		}
@@ -893,6 +986,8 @@ public class SpringApplication {
 		if (this.environment != null) {
 			loader.setEnvironment(this.environment);
 		}
+
+		// 注册source对应的bd
 		loader.load();
 	}
 
@@ -1305,6 +1400,9 @@ public class SpringApplication {
 	/**
 	 * Set additional sources that will be used to create an ApplicationContext. A source
 	 * can be: a class name, package name, or an XML resource location.
+	 *
+	 * 设置将用于创建 ApplicationContext 的其他源。源可以是：类名、包名或 XML 资源位置。
+	 *
 	 * <p>
 	 * Sources set here will be used in addition to any primary sources set in the
 	 * constructor.
@@ -1318,20 +1416,31 @@ public class SpringApplication {
 	}
 
 	/**
+	 * 获取SpringApplication.run(class...)中传入的类
+	 *
 	 * Return an immutable set of all the sources that will be added to an
 	 * ApplicationContext when {@link #run(String...)} is called. This method combines any
 	 * primary sources specified in the constructor with any additional ones that have
 	 * been {@link #setSources(Set) explicitly set}.
+	 *
+	 * 当调用 {@link run(String...)} 时，返回将添加到 ApplicationContext 的所有源的不可变集合。
+	 * 此方法将构造函数中指定的任何主要来源与已{@link setSources(Set) 显式设置} 的任何其他来源结合起来。
+	 *
 	 * @return an immutable set of all sources
 	 */
 	public Set<Object> getAllSources() {
 		Set<Object> allSources = new LinkedHashSet<>();
+
+		// SpringApplication.run(class...)中传入的类
 		if (!CollectionUtils.isEmpty(this.primarySources)) {
 			allSources.addAll(this.primarySources);
 		}
+
+		// 通过ApplicationContext#setSource()添加的类（一般为null）
 		if (!CollectionUtils.isEmpty(this.sources)) {
 			allSources.addAll(this.sources);
 		}
+
 		return Collections.unmodifiableSet(allSources);
 	}
 
@@ -1375,12 +1484,16 @@ public class SpringApplication {
 	}
 
 	/**
+	 * 获取spring.factories文件中的"ApplicationContextInitializer(初始化器)"
+	 *
 	 * Returns read-only ordered Set of the {@link ApplicationContextInitializer}s that
 	 * will be applied to the Spring {@link ApplicationContext}.
 	 * @return the initializers
 	 */
 	public Set<ApplicationContextInitializer<?>> getInitializers() {
-		return asUnmodifiableOrderedSet(this.initializers);
+		// 1、this.initializers：spring.factories文件中的"ApplicationContextInitializer(初始化器)"
+		// 2、asUnmodifiableOrderedSet()：排序
+		return asUnmodifiableOrderedSet/* 作为不可修改的有序集 */(this.initializers);
 	}
 
 	/**
@@ -1498,9 +1611,13 @@ public class SpringApplication {
 		}
 	}
 
+	/**
+	 * 对elements进行排序
+	 */
 	private static <E> Set<E> asUnmodifiableOrderedSet(Collection<E> elements) {
 		List<E> list = new ArrayList<>(elements);
-		list.sort(AnnotationAwareOrderComparator.INSTANCE);
+		// 排序
+		list.sort(AnnotationAwareOrderComparator.INSTANCE/* AnnotationAwareOrderComparator */);
 		return new LinkedHashSet<>(list);
 	}
 
