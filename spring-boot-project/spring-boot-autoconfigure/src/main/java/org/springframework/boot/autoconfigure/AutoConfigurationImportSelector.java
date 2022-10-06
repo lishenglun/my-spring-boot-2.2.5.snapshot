@@ -104,7 +104,7 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 	}
 
 	/**
-	 *
+	 * 获取自动装配的配置类
 	 *
 	 * 注意：该方法由{@link AutoConfigurationImportSelector.AutoConfigurationGroup#process(AnnotationMetadata, DeferredImportSelector)}调用
 	 *
@@ -119,6 +119,7 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 	 */
 	protected AutoConfigurationEntry getAutoConfigurationEntry(AutoConfigurationMetadata autoConfigurationMetadata,
 			AnnotationMetadata annotationMetadata) {
+
 		if (!isEnabled(annotationMetadata)) {
 			return EMPTY_ENTRY;
 		}
@@ -126,7 +127,7 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 		// 获取元注解中的属性
 		AnnotationAttributes attributes = getAttributes(annotationMetadata);
 
-		/* 加载当前系统下META-INF/spring.factories文件中声明的配置类 */
+		/* 1、加载当前系统下spring.factories文件中声明的配置类(配置类key：org.springframework.boot.autoconfigure.EnableAutoConfiguration) */
 
 		/**
 		 * 1、题外：为什么默认的这么多？因为spring boot火了，很多厂商想抱spring boot的大腿，就跟spring boot说，你帮我，把我的配置类在你的默认配置里面加上。
@@ -138,11 +139,10 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 		// 简称：加载当前系统下META-INF/spring.factories文件中声明的配置类（整合相关bean到SpringBoot中去的Java配置类）
 		List<String> configurations = getCandidateConfigurations(annotationMetadata, attributes);
 
-		/* 去重 */
+		/* 2、去重 */
 		configurations = removeDuplicates(configurations);
 
-		/* 移除掉显示排除的 */
-
+		/* 3、移除掉显示排除的 */
 		// 获取显示排除的配置类的全限定类名（exclusion属性）
 		Set<String> exclusions = getExclusions(annotationMetadata, attributes);
 		// 检查一下要排除的
@@ -150,8 +150,12 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 		// 移除掉显示排除的
 		configurations.removeAll(exclusions);
 
-		/* 过滤掉当前环境下，不需要载入的配置类 */
+		/*
 
+		4、过滤掉当前环境下，不需要载入的配置类。
+		过滤规则具体实现：根据spring.factories文件中的AutoConfigurationImportFilter，以及spring-autoconfigure-metadata.properties文件中"配置类被加载的条件"，过滤掉当前环境下用不到的配置类。
+
+		*/
 		/**
 		 * 1、为什么要过滤呢？
 		 *
@@ -166,7 +170,7 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 		 *
 		 * 2、过滤规则
 		 *
-		 * 根据spring.factories文件中的AutoConfigurationImportFilter类型对象，以及spring-autoconfigure-metadata.properties文件中"配置类被加载的条件"，过滤掉当前环境下用不到的配置类
+		 * 根据spring.factories文件中的AutoConfigurationImportFilter，以及spring-autoconfigure-metadata.properties文件中"配置类被加载的条件"，过滤掉当前环境下用不到的配置类
 		 *
 		 * 🌰例如：spring.factories文件中的配置类有：RedisAutoConfiguration
 		 * >>> 由于spring.factories文件中存在AutoConfigurationImportFilter有OnClassCondition，
@@ -180,9 +184,16 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 		// 根据spring.factories文件中的AutoConfigurationImportFilter类型对象，以及spring-autoconfigure-metadata.properties文件中"配置类被加载的条件"，过滤掉当前环境下用不到的配置类
 		configurations = filter(configurations, autoConfigurationMetadata);
 
-		// 广播事件
-		fireAutoConfigurationImportEvents(configurations, exclusions);
+		/*
 
+		5、广播"自动配置导入"事件
+		(1)获取spring.factories文件中所有的AutoConfigurationImportListener；
+		(2)然后执行所有的AutoConfigurationImportListener#onAutoConfigurationImportEvent()处理AutoConfigurationImportEvent事件
+
+		*/
+		fireAutoConfigurationImportEvents/* 触发自动配置导入事件 */(configurations, exclusions);
+
+		/* 6、返回要加载解析的配置类 */
 		return new AutoConfigurationEntry(configurations, exclusions);
 	}
 
@@ -435,17 +446,37 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 		return Arrays.asList(value);
 	}
 
+	/**
+	 * 广播"自动配置导入"事件：
+	 * (1)获取spring.factories文件中所有的AutoConfigurationImportListener；
+	 * (2)然后执行所有的AutoConfigurationImportListener#onAutoConfigurationImportEvent()处理AutoConfigurationImportEvent事件
+	 *
+	 * @param configurations			过滤完毕的，最终要导入的配置类
+	 * @param exclusions				显示排除的配置类
+	 */
 	private void fireAutoConfigurationImportEvents(List<String> configurations, Set<String> exclusions) {
+		/* 1、从spring.factories文件中获取所有的AutoConfigurationImportListener */
 		List<AutoConfigurationImportListener> listeners = getAutoConfigurationImportListeners();
+
+		// 存在AutoConfigurationImportListener
 		if (!listeners.isEmpty()) {
+			/* 2、创建AutoConfigurationImportEvent("自动配置导入")事件 */
+			// "自动配置导入"事件
 			AutoConfigurationImportEvent event = new AutoConfigurationImportEvent(this, configurations, exclusions);
+
+			/* 3、执行所有的AutoConfigurationImportListener#onAutoConfigurationImportEvent()处理AutoConfigurationImportEvent事件 */
 			for (AutoConfigurationImportListener listener : listeners) {
+				// 如果AutoConfigurationImportListener实现了一些Aware接口，则设置对应的属性值。
 				invokeAwareMethods(listener);
+				// 执行AutoConfigurationImportListener#onAutoConfigurationImportEvent()处理"自动配置导入"事件
 				listener.onAutoConfigurationImportEvent(event);
 			}
 		}
 	}
 
+	/**
+	 * 从spring.factories文件中获取所有的AutoConfigurationImportListener
+	 */
 	protected List<AutoConfigurationImportListener> getAutoConfigurationImportListeners() {
 		return SpringFactoriesLoader.loadFactories(AutoConfigurationImportListener.class, this.beanClassLoader);
 	}
