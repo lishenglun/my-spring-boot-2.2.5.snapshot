@@ -20,13 +20,15 @@ import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 
 /**
- * Outcome for a condition match, including log message.
+ * 条件结果
+ *
+ * Outcome for a condition match, including log message. —— 条件匹配的结果，包括日志消息
  *
  * @author Phillip Webb
  * @since 1.0.0
  * @see ConditionMessage
  */
-public class ConditionOutcome {
+public class ConditionOutcome/* 条件结果 */ {
 
 	// 是否匹配（true：匹配；false：不匹配）
 	private final boolean match;
@@ -73,6 +75,8 @@ public class ConditionOutcome {
 	}
 
 	/**
+	 * 创建一个匹配的ConditionOutcome
+	 *
 	 * Create a new {@link ConditionOutcome} instance for 'match'.
 	 * @param message the message
 	 * @return the {@link ConditionOutcome}
@@ -92,6 +96,8 @@ public class ConditionOutcome {
 	}
 
 	/**
+	 * 创建一个不匹配的ConditionOutcome
+	 *
 	 * Create a new {@link ConditionOutcome} instance for 'no match'.
 	 * @param message the message
 	 * @return the {@link ConditionOutcome}

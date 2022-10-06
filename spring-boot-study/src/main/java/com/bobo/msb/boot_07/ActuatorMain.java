@@ -1,4 +1,4 @@
-package com.bobo.demo.msb.boot_07;
+package com.bobo.msb.boot_07;
 
 /**
  * @author lishenglun

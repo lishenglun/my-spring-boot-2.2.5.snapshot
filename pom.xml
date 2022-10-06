@@ -19,6 +19,12 @@
 		<disable.checks>true</disable.checks>
 	</properties>
 
+	<!--	自己加的<modules>	-->
+	<modules>
+		<module>spring-boot-study</module>
+		<module>spring-boot-study-bootstrap</module>
+	</modules>
+
 	<!-- Most elements are in profiles so they are stripped out during maven-flatten -->
 	<profiles>
 		<!-- Default profile for command line build -->

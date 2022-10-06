@@ -109,13 +109,33 @@ class OnClassCondition extends FilteringSpringBootCondition {
 		}
 	}
 
+	/**
+	 * 处理@ConditionalOnClass、@ConditionalOnMissingClass，获取匹配的结果。
+	 * 大体逻辑就是：看系统中是否存在对应的全限定类名的类，来决定是否匹配
+	 *
+	 * @param context            用于条件判断时使用的上下文环境，一般是一个{@link ConditionEvaluator.ConditionContextImpl}对象，
+	 * 							 里面包含了BeanDefinitionRegistry、ConfigurableListableBeanFactory、Environment等对，方便我们进行条件判断！
+	 *
+	 * @param metadata			 @Condition所在标注类的注解元数据
+	 */
 	@Override
 	public ConditionOutcome getMatchOutcome(ConditionContext context, AnnotatedTypeMetadata metadata) {
 		ClassLoader classLoader = context.getClassLoader();
+
 		ConditionMessage matchMessage = ConditionMessage.empty();
+		/*
+
+		1、获取@ConditionalOnClass中配置的全限定类名，然后过滤出其中系统中不存在的全限定类名对应的类，
+		如果有系统中不存在的全限定类名对应的类，那么就创建一个不匹配的ConditionOutcome（条件结果）返回
+
+		*/
+		// 获取@ConditionalOnClass中配置的条件信息：全限定类名，系统中必须存在这些全限定类名所对应的类
 		List<String> onClasses = getCandidates(metadata, ConditionalOnClass.class);
+		// 题外：存在配置的全限定类名，代表存在@ConditionalOnClass注解
 		if (onClasses != null) {
+			// 过滤出系统中不存在的全限定类名对应的类
 			List<String> missing = filter(onClasses, ClassNameFilter.MISSING, classLoader);
+			// 如果系统中有不存在的全限定类名对应的类，那么就创建一个不匹配的ConditionOutcome（条件结果）返回
 			if (!missing.isEmpty()) {
 				return ConditionOutcome.noMatch(ConditionMessage.forCondition(ConditionalOnClass.class)
 						.didNotFind("required class", "required classes").items(Style.QUOTE, missing));
@@ -124,10 +144,22 @@ class OnClassCondition extends FilteringSpringBootCondition {
 					.found("required class", "required classes")
 					.items(Style.QUOTE, filter(onClasses, ClassNameFilter.PRESENT, classLoader));
 		}
+
+		/*
+
+		2、获取@ConditionalOnMissingClass中配置的全限定类名，然后过滤出其中系统中存在的全限定类名对应的类，
+		如果有系统中存在的全限定类名对应的类，那么就创建一个不匹配的ConditionOutcome（条件结果）返回
+
+		*/
+		// 获取@ConditionalOnMissingClass中配置的条件信息：全限定类名，系统中必须不存在这些全限定类名所对应的类
 		List<String> onMissingClasses = getCandidates(metadata, ConditionalOnMissingClass.class);
+		// 题外：存在配置的全限定类名，代表存在@ConditionalOnMissingClass注解
 		if (onMissingClasses != null) {
+			// 过滤出系统中存在的全限定类名对应的类
 			List<String> present = filter(onMissingClasses, ClassNameFilter.PRESENT, classLoader);
+			// 如果系统中有存在的全限定类名对应的类，那么就创建一个不匹配的ConditionOutcome（条件结果）返回
 			if (!present.isEmpty()) {
+				// ⚠️创建一个不匹配的ConditionOutcome
 				return ConditionOutcome.noMatch(ConditionMessage.forCondition(ConditionalOnMissingClass.class)
 						.found("unwanted class", "unwanted classes").items(Style.QUOTE, present));
 			}
@@ -135,17 +167,41 @@ class OnClassCondition extends FilteringSpringBootCondition {
 					.didNotFind("unwanted class", "unwanted classes")
 					.items(Style.QUOTE, filter(onMissingClasses, ClassNameFilter.MISSING, classLoader));
 		}
+
+		/*
+
+		3、上面的@ConditionalOnClass、@ConditionalOnMissingClass，两者都满足条件，或者两者的其中之一满足条件，那么就直接创建一个匹配的ConditionOutcome（条件结果）返回
+
+		注意：⚠️没有配置@ConditionalOnClass/@ConditionalOnMissingClass，那么是不可能进入到当前方法的！
+
+		*/
+		// ⚠️创建一个匹配的ConditionOutcome（条件结果）
 		return ConditionOutcome.match(matchMessage);
 	}
 
+	/**
+	 * 获取条件注解中配置的条件
+	 *
+	 * @param metadata					注解所在修饰类的元数据
+	 * @param annotationType			注解类型
+	 */
 	private List<String> getCandidates(AnnotatedTypeMetadata metadata, Class<?> annotationType) {
+		// 获取某一类型的注解的属性值映射
 		MultiValueMap<String, Object> attributes = metadata.getAllAnnotationAttributes(annotationType.getName(), true);
+
+		// 如果不存在属性值映射，则代表不存在当前类型的注解
 		if (attributes == null) {
 			return null;
 		}
+
+		// 存放注解中配置的条件
 		List<String> candidates = new ArrayList<>();
+		// 获取注解中的value属性值
 		addAll(candidates, attributes.get("value"));
+		// 获取注解中的name属性值
 		addAll(candidates, attributes.get("name"));
+
+		// 返回注解中配置的条件
 		return candidates;
 	}
 
@@ -244,23 +300,32 @@ class OnClassCondition extends FilteringSpringBootCondition {
 			// 存放条件结果
 			ConditionOutcome[] outcomes = new ConditionOutcome[end - start];
 
+			/*
+
+			1、判断spring-autoconfigure-metadata.properties文件中【配置类.ConditionalOnClass】对应的加载条件的全限定类名称所对应的类是否存在
+			（1）没有【配置类.ConditionalOnClass】对应的加载条件，则返回null，代表当前过滤器不过滤这个配置类
+			（2）存在【配置类.ConditionalOnClass】对应的加载条件的全限定类名称所对应的类，则返回null，代表当前过滤器不过滤这个配置类
+			（3）不存在【配置类.ConditionalOnClass】对应的加载条件的全限定类名称所对应的类，则构建"不匹配的ConditionOutcome"返回，代表要过滤这个配置类
+
+			 */
 			for (int i = start; i < end; i++) {
 				// 配置类的全限定类名
 				String autoConfigurationClass = autoConfigurationClasses[i];
 				if (autoConfigurationClass != null) {
-
+					/**
+					 * 例如：autoConfigurationClass = org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration，会拼接上.ConditionalOnClass，得到：org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration.ConditionalOnClass
+					 * >>> 然后去获取【org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration.ConditionalOnClass】在spring-autoconfigure-metadata.properties文件中，对应的对应的被加载的条件的全限定类名称
+					 * >>> 在spring-autoconfigure-metadata.properties文件中，有：org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration.ConditionalOnClass=com.rabbitmq.client.Channel,org.springframework.amqp.rabbit.core.RabbitTemplate
+					 * >>> 所以可以得到com.rabbitmq.client.Channel,org.springframework.amqp.rabbit.core.RabbitTemplate
+					 */
 					// 会拼接autoConfigurationClass.ConditionalOnClass，然后从autoConfigurationMetadata中获取对应的条件的全限定类名
 					// 也就是获取spring-autoconfigure-metadata.properties文件中【配置类.ConditionalOnClass】对应的被加载的条件的全限定类名称
-					// 例如：autoConfigurationClass = org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration，会拼接上.ConditionalOnClass，得到：org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration.ConditionalOnClass
-					// >>> 然后去获取【org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration.ConditionalOnClass】在spring-autoconfigure-metadata.properties文件中，对应的对应的被加载的条件的全限定类名称
-					// >>> 在spring-autoconfigure-metadata.properties文件中，有：org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration.ConditionalOnClass=com.rabbitmq.client.Channel,org.springframework.amqp.rabbit.core.RabbitTemplate
-					// >>> 所以可以得到com.rabbitmq.client.Channel,org.springframework.amqp.rabbit.core.RabbitTemplate
 					String candidates = autoConfigurationMetadata.get(autoConfigurationClass, "ConditionalOnClass");
 
 					// 存在【配置类.ConditionalOnClass】对应的条件
 					if (candidates != null) {
 						// 获取是否存在className的结果
-						//（1）如果不存在这个className，则构建不匹配的ConditionOutcome返回
+						//（1）如果不存在这个className，则构建"不匹配的ConditionOutcome"返回
 						//（2）存在这个className，则返回null
 						outcomes[i - start] = getOutcome(candidates);
 					}

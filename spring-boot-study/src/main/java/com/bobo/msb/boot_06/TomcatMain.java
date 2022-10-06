@@ -1,4 +1,4 @@
-package com.bobo.demo.msb.boot_06;
+package com.bobo.msb.boot_06;
 
 import org.springframework.boot.autoconfigure.web.embedded.EmbeddedWebServerFactoryCustomizerAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.servlet.ServletWebServerFactoryAutoConfiguration;

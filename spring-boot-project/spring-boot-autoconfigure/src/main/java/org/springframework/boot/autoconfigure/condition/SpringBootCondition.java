@@ -40,13 +40,29 @@ public abstract class SpringBootCondition implements Condition {
 
 	private final Log logger = LogFactory.getLog(getClass());
 
+	/**
+	 * 条件判断是否匹配
+	 *
+	 * @param context        用于条件判断时使用的上下文环境，一般是一个{@link ConditionEvaluator.ConditionContextImpl}对象，
+	 * 						 里面包含了BeanDefinitionRegistry、ConfigurableListableBeanFactory、Environment等对，方便我们进行条件判断！
+	 *
+	 * @param metadata		 @Condition所在标注类的注解元数据
+	 */
 	@Override
 	public final boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
+
+		// 根据当前@Condition修饰的位置，获取标记当前@Condition的类名或者方法名
 		String classOrMethodName = getClassOrMethodName(metadata);
 		try {
+
+			// ⚠️返回是否注入当前类的布尔值
 			ConditionOutcome outcome = getMatchOutcome(context, metadata);
+
+			// 这两个就是日志记录等等,就不看了
 			logOutcome(classOrMethodName, outcome);
 			recordEvaluation(context, classOrMethodName, outcome);
+
+			// 获取是否匹配
 			return outcome.isMatch();
 		}
 		catch (NoClassDefFoundError ex) {
@@ -59,6 +75,7 @@ public abstract class SpringBootCondition implements Condition {
 		catch (RuntimeException ex) {
 			throw new IllegalStateException("Error processing condition on " + getName(metadata), ex);
 		}
+
 	}
 
 	private String getName(AnnotatedTypeMetadata metadata) {
@@ -73,10 +90,12 @@ public abstract class SpringBootCondition implements Condition {
 	}
 
 	private static String getClassOrMethodName(AnnotatedTypeMetadata metadata) {
+		/* 1、如果是修饰在类上，则获取类名 */
 		if (metadata instanceof ClassMetadata) {
 			ClassMetadata classMetadata = (ClassMetadata) metadata;
 			return classMetadata.getClassName();
 		}
+		/* 2、如果是修饰在方法上，则获取方法名 */
 		MethodMetadata methodMetadata = (MethodMetadata) metadata;
 		return methodMetadata.getDeclaringClassName() + "#" + methodMetadata.getMethodName();
 	}

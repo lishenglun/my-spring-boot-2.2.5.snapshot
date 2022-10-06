@@ -104,6 +104,14 @@ abstract class FilteringSpringBootCondition extends SpringBootCondition
 		this.beanClassLoader = classLoader;
 	}
 
+	/**
+	 * 过滤出满足条件的全限定类名
+	 *
+	 * @param classNames
+	 * @param classNameFilter
+	 * @param classLoader
+	 * @return
+	 */
 	protected final List<String> filter(Collection<String> classNames, ClassNameFilter classNameFilter,
 			ClassLoader classLoader) {
 
@@ -111,8 +119,10 @@ abstract class FilteringSpringBootCondition extends SpringBootCondition
 			return Collections.emptyList();
 		}
 
+		// 存放满足过滤条件的全限定类名
 		List<String> matches = new ArrayList<>(classNames.size());
 		for (String candidate : classNames) {
+			// 过滤。如果条件满足，就放入matches集合中。
 			if (classNameFilter.matches(candidate, classLoader)) {
 				matches.add(candidate);
 			}
@@ -122,10 +132,17 @@ abstract class FilteringSpringBootCondition extends SpringBootCondition
 	}
 
 	/**
+	 * 获取全限定类名对应的Class对象
+	 *
 	 * Slightly faster variant of {@link ClassUtils#forName(String, ClassLoader)} that
 	 * doesn't deal with primitives, arrays or inner types.
+	 *
 	 * @param className the class name to resolve
+	 *                  全限定类名
+	 *
 	 * @param classLoader the class loader to use
+	 *                  类加载器
+	 *
 	 * @return a resolved class
 	 * @throws ClassNotFoundException if the class cannot be found
 	 */
@@ -134,7 +151,8 @@ abstract class FilteringSpringBootCondition extends SpringBootCondition
 		if (classLoader != null) {
 			return classLoader.loadClass(className);
 		}
-		// 2、否则，用Class.forName()，采用默认加载器进行加载
+
+		// 2、否则，用Class.forName()，也就是采用默认加载器进行加载
 		return Class.forName(className);
 	}
 

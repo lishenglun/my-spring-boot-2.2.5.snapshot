@@ -1,4 +1,4 @@
-package com.bobo.demo.msb.boot_01;
+package com.bobo.msb.boot_01;
 
 /**
  * Spring版本中注解的发展历史

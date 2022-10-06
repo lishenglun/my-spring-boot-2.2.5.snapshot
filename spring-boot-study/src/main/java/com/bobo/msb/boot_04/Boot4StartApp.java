@@ -1,4 +1,4 @@
-package com.bobo.demo.msb.boot_04;
+package com.bobo.msb.boot_04;
 
 
 /**

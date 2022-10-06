@@ -309,7 +309,8 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 	/**
 	 * 过滤掉当前环境下用不到的配置类，得到当前环境下需要加载解析的配置类
 	 *
-	 * 1、涉及的东西：通过spring.factories文件中所有的AutoConfigurationImportFilter类型对象，以及spring-autoconfigure-metadata.properties文件中的配置类被加载条件，过滤掉当前环境下用不到的配置类，得到当前环境下需要加载解析的配置类
+	 * 1、涉及的东西：通过spring.factories文件中所有的AutoConfigurationImportFilter类型对象，以及spring-autoconfigure-metadata.properties文件中的配置类被加载条件，
+	 * 过滤掉当前环境下用不到的配置类，得到当前环境下需要加载解析的配置类
 	 *
 	 * 2、具体操作：获取spring.factories文件中所有的AutoConfigurationImportFilter类型对象，然后遍历AutoConfigurationImportFilter，
 	 * 根据每一个AutoConfigurationImportFilter，去获取配置类在spring-autoconfigure-metadata.properties文件中特定的加载条件，
@@ -333,7 +334,8 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 
 		/*
 
-		1、遍历AutoConfigurationImportFilter，根据每一个AutoConfigurationImportFilter，获取配置类在spring-autoconfigure-metadata.properties文件中特定的加载条件，
+		1、遍历spring.factories文件中所有的AutoConfigurationImportFilter，
+		根据每一个AutoConfigurationImportFilter，去spring-autoconfigure-metadata.properties文件中，获取配置类所对应的加载条件，
 		然后检查其条件是否满足，从而过滤掉当前环境下用不到的配置类
 
 		注意：⚠️只要其中一个AutoConfigurationImportFilter得出某个配置类不满足加载条件，那么这个配置类就不满足加载条件，
@@ -348,6 +350,15 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 		 * {@link org.springframework.boot.autoconfigure.condition.OnBeanCondition}
 		 * {@link org.springframework.boot.autoconfigure.condition.OnClassCondition}
 		 * {@link org.springframework.boot.autoconfigure.condition.OnWebApplicationCondition}
+		 *
+		 * 注意：在当前，过滤配置类这方面，OnBeanCondition与OnClassCondition的效果差不多，都是看其对应的全限定类名的类是否存在当前系统中，都存在就代表匹配，只要其中有一个不存在，就代表不匹配
+		 *
+		 * 注意：虽然@ConditionalOnBean功能的实现者(条件对象)是OnBeanCondition，但是在当前，过滤配置类这方面，OnBeanCondition与@ConditionalOnBean的作用点和效果是完全不一样的，是两个独立的功能！
+		 * >>> 在当前，过滤配置类这方面，OnBeanCondition其的作用是：
+		 * >>> 从spring-autoconfigure-metadata.properties文件中，获取【配置类.ConditionalOnBean】对应的全限定类名，然后判断这些全限定类名所对应的类，是否存在于系统当中，来决定当前配置类是否应该被过滤；
+		 * >>> 而@ConditionalOnBean的作用是在解析配置类的时候，根据@ConditionalOnBean中的内容，判断是否应该跳过配置类的解析。
+		 * >>>
+		 * >>> 同理虽然@ConditionalOnClass功能的实现者(条件对象)是OnClassCondition，但是在当前，过滤配置类这方面，OnClassCondition与@ConditionalOnClass的作用点和效果是完全不一样的，是两个独立的功能！
 		 */
 		// 遍历spring.factories文件中所有的AutoConfigurationImportFilter类型对象
 		for (AutoConfigurationImportFilter filter : getAutoConfigurationImportFilters()) {
@@ -357,7 +368,7 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 
 			// 通过AutoConfigurationImportFilter，获取spring-autoconfigure-metadata.properties文件中配置类被加载的条件，
 			// 然后检查其条件是否满足，从而得出当前配置类是否需要被加载解析
-			// 注意：⚠️boolean[] match，这个数组与String[] candidates数组，一一对应！
+			// 注意：⚠️【boolean[] match数组】与【String[] candidates数组】一一对应
 			boolean[] match = /* ⚠️ */filter.match(candidates, autoConfigurationMetadata);
 			for (int i = 0; i < match.length; i++) {
 				// 检查当前配置类的加载条件，是否匹配

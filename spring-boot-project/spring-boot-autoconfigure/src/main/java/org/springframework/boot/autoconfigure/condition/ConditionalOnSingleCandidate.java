@@ -49,6 +49,10 @@ import org.springframework.context.annotation.Conditional;
 public @interface ConditionalOnSingleCandidate {
 
 	/**
+	 * bean的Class对象。只有当BeanFactory中存在这个Class对象对应的bean时，条件匹配
+	 *
+	 * 注意：实际的判断是，只要存在
+	 *
 	 * The class type of bean that should be checked. The condition matches if a bean of
 	 * the class specified is contained in the {@link BeanFactory} and a primary candidate
 	 * exists in case of multiple instances.
@@ -60,6 +64,8 @@ public @interface ConditionalOnSingleCandidate {
 	Class<?> value() default Object.class;
 
 	/**
+	 * bean的全限定类名。只有当BeanFactory中存在这个全限定类名对应的bean时，条件匹配。
+	 *
 	 * The class type name of bean that should be checked. The condition matches if a bean
 	 * of the class specified is contained in the {@link BeanFactory} and a primary
 	 * candidate exists in case of multiple instances.
