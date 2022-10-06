@@ -9,7 +9,7 @@
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>2.2.5.snapshot</version>
 		<!-- lookup parent from repository -->
-		<!--        <relativePath/> -->
+		<relativePath/>
 	</parent>
 
 	<groupId>com.bobo</groupId>
