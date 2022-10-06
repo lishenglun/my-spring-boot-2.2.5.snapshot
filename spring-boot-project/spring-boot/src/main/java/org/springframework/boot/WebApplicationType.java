@@ -71,7 +71,7 @@ public enum WebApplicationType/* 网络应用程序类型 */ {
 	private static final String REACTIVE_APPLICATION_CONTEXT_CLASS = "org.springframework.boot.web.reactive.context.ReactiveWebApplicationContext";
 
 	/**
-	 * 根据是否存在"某些类的类路径名称"推导出Web项目的类型：servlet web项目 / reactive web项目 / 不是一个web项目
+	 * 判断项目中是否存在"一些类的全限定类名"所对应的类，推导出当前Web项目的类型：1、servlet web项目 / 2、reactive web项目 / 3、不是一个web项目
 	 */
 	static WebApplicationType/* 网络应用程序类型 */ deduceFromClasspath() {
 		/* 1、存在DispatcherHandler，并且不存在DispatcherServlet，并且不存在ServletContainer，则代表：当前程序是响应式web程序，会启动内嵌的响应式web服务器 */

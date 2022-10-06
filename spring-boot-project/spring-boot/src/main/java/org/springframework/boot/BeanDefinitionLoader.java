@@ -57,6 +57,7 @@ import org.springframework.util.StringUtils;
  */
 class BeanDefinitionLoader {
 
+	// 里面包含了SpringApplication.run(class...)中的Class
 	private final Object[] sources;
 
 	private final AnnotatedBeanDefinitionReader annotatedReader;
@@ -74,6 +75,7 @@ class BeanDefinitionLoader {
 	 * {@link BeanDefinitionRegistry}.
 	 * @param registry the bean definition registry that will contain the loaded beans
 	 * @param sources the bean sources
+	 *                ⚠️里面包含了SpringApplication.run(class...)中的Class
 	 */
 	BeanDefinitionLoader(BeanDefinitionRegistry registry, Object... sources) {
 		Assert.notNull(registry, "Registry must not be null");
@@ -125,7 +127,7 @@ class BeanDefinitionLoader {
 	int load() {
 		int count = 0;
 		for (Object source : this.sources) {
-			// ⚠️注册source对应的bd
+			// ⚠️注册source对应的bd(⚠️source里面包含了SpringApplication.run(class...)中的Class)
 			count += load(source);
 		}
 		return count;
@@ -135,7 +137,7 @@ class BeanDefinitionLoader {
 		Assert.notNull(source, "Source must not be null");
 		// Class
 		if (source instanceof Class<?>) {
-			// 注册source对应的bd
+			// ⚠️注册source对应的bd
 			return load((Class<?>) source);
 		}
 		// Resource

@@ -195,14 +195,17 @@ public class SpringApplication {
 
 	private static final Log logger = LogFactory.getLog(SpringApplication.class);
 
-	/**
-	 * 例如：SpringApplication.run(Boot2StartApp.class)中的Boot2StartApp
-	 */
 	// 记录主方法的配置类Class
+	// 例如：SpringApplication.run(Boot2StartApp.class)中的Boot2StartApp
+	// 注意：⚠️primarySources和mainApplicationClass的区别：
+	// >>> primarySources是我们在调用SpringApplication.run()时参数传入的Class，可以传入多个；
+	// >>> 而mainApplicationClass是根据堆栈信息推导出来的main方法所在的Class；
+	// >>> 两者可以不一样，但是，由于我们在SpringApplication.run()传入的参数一般是main方法所在的Class，所以两者一般相同！
 	private Set<Class<?>> primarySources;
 
 	private Set<String> sources = new LinkedHashSet<>();
 
+	// 通过堆栈信息推导出的main方法所在的Class
 	private Class<?> mainApplicationClass;
 
 	private Banner.Mode bannerMode = Banner.Mode.CONSOLE;
@@ -211,6 +214,7 @@ public class SpringApplication {
 	private boolean logStartupInfo = true;
 
 	private boolean addCommandLineProperties = true;
+
 	// 是否需要添加转换服务
 	private boolean addConversionService = true;
 
@@ -314,32 +318,35 @@ public class SpringApplication {
 		this.resourceLoader = resourceLoader;
 		Assert.notNull(primarySources, "PrimarySources must not be null");
 
-		// 1、记录主方法的配置类Class
+		/* 1、记录主方法的配置类Class */
 		this.primarySources = new LinkedHashSet<>(Arrays.asList(primarySources));
 
-		// 2、根据是否存在"某些类的类路径名称"推导出Web项目的类型：servlet web项目 / reactive web项目 / 不是一个web项目
+		/* 2、判断项目中是否存在"一些类的全限定类名"所对应的类，推导出当前Web项目的类型：1、servlet web项目 / 2、reactive web项目 / 3、不是一个web项目 */
 		this.webApplicationType = WebApplicationType.deduceFromClasspath/* 从类路径推断 */();
 
 		/**
 		 * 💡提示：当前Spring boot项目下，只有spring-boot、spring-boot-autoconfigure这2个模块下，存在spring.factories文件
 		 */
 
-		// 3、初始化配置在spring.factories文件中的"初始化器"
+		/* 3、初始化配置在spring.factories文件中的"初始化器" —— ApplicationContextInitializer */
 		// 加载配置在spring.factories文件中的ApplicationContextInitializer实现类的全限定类名，并通过反射实例化对象，然后存储在initializers成员变量中
 		setInitializers((Collection) getSpringFactoriesInstances(ApplicationContextInitializer.class));
 
-		// 4、初始化配置在spring.factories文件中的"监听器"
+		/* 4、初始化配置在spring.factories文件中的"监听器" —— ApplicationListener */
 		// 加载配置在spring.factories文件中的监听器并实例化对象，然后将监听器对象存储在了listeners成员变量中
 		setListeners((Collection) getSpringFactoriesInstances(ApplicationListener.class));
 
-		// 5、通过堆栈信息反推main方法所在的Class对象
-		// 具体做法：挨个比对堆栈的方法名称是不是main，是的话就证明找到了main方法了，然后获取main方法所在的Class
+		/*
+
+		5、通过堆栈信息反推main方法所在的Class对象：
+		具体做法：挨个比对堆栈的方法名称是不是main，是的话就证明找到了main方法了，然后获取main方法所在的Class
+
+		*/
 		this.mainApplicationClass = deduceMainApplicationClass()/* 反推main方法所在的Class对象 */;
 	}
 
 	/**
 	 * 通过堆栈信息，推导main方法所在的Class
-	 *
 	 * 具体做法：挨个比对堆栈的方法名称是不是main，是的话就证明找到了main方法了，然后获取main方法所在的Class
 	 */
 	private Class<?> deduceMainApplicationClass() {
@@ -396,8 +403,8 @@ public class SpringApplication {
 		configureHeadlessProperty();
 
 		/**
-		 * 1、默认从spring.factories文件中，获取到的SpringApplicationRunListener只有{@link org.springframework.boot.context.event.EventPublishingRunListener}这1个，
-		 * 里面获取了事件广播器，以及所有的ApplicationListener
+		 * 1、默认从spring.factories文件中，获取到的SpringApplicationRunListener只有{@link org.springframework.boot.context.event.EventPublishingRunListener}这1个。
+		 * （1）EventPublishingRunListener里面：获取了spring的事件广播器，以及spring体系内所有的的ApplicationListener
 		 *
 		 * 2、题外：SpringApplicationRunListeners本质上是一个spring boot体系内的"广播器/事件发布器"，用来发布事件时，触发spring boot体系内的监听器(SpringApplicationRunListener)
 		 *
@@ -414,7 +421,7 @@ public class SpringApplication {
 		listeners.starting();
 		try {
 			// 创建一个应用程序的参数持有对象
-			ApplicationArguments applicationArguments = new DefaultApplicationArguments(args);
+			ApplicationArguments applicationArguments = new DefaultApplicationArguments(args/* 一般为null */);
 
 			// 读取配置环境，创建配置环境对象（会加载加载当前jvm(例如：jdk路径，jvm变量)、当前系统的环境(例如：当前系统的用户名)、以及自定义的属性信息）
 			// 题外：里面也会发布事件
@@ -542,7 +549,7 @@ public class SpringApplication {
 		/* 2、如果存在，则往context中添加beanNameGenerator、resourceLoader、ConversionService(ApplicationConversionService) */
 		postProcessApplicationContext(context);
 
-		/* 3、调用spring.factories文件中的所有的(初始化器)ApplicationContextInitializer#initialize()，处理ConfigurableApplicationContext */
+		/* 3、调用spring.factories文件中所有的(初始化器)ApplicationContextInitializer#initialize()，处理ConfigurableApplicationContext */
 		applyInitializers(context);
 
 		/* 4、🚥️发布准备上下文事件 */
@@ -579,9 +586,10 @@ public class SpringApplication {
 			context.addBeanFactoryPostProcessor(new LazyInitializationBeanFactoryPostProcessor());
 		}
 
-		/* 8、注册了SpringApplication.run(class...)中的Class bd */
+		/* 8、⚠️注册了SpringApplication.run(class...)中的Class bd */
 		// Load the sources —— 加载资源
-		// 获取SpringApplication.run(class...)中传入的类
+
+		// ⚠️获取SpringApplication.run(class...)中传入的Class
 		Set<Object> sources = getAllSources();
 		Assert.notEmpty(sources, "Sources must not be empty");
 		// ⚠️注册source对应的bd（也就是注册了SpringApplication.run(class...)中的Class bd）
@@ -955,7 +963,7 @@ public class SpringApplication {
 	}
 
 	/**
-	 * Returns the {@link Log} for the application. By default will be deduced.
+	 * Returns the {@link Log} for the application. By default will be deduced. —— 返回应用程序的 {@link Log}。默认情况下会被推导出来。
 	 * @return the application log
 	 */
 	protected Log getApplicationLog() {
@@ -977,17 +985,20 @@ public class SpringApplication {
 		}
 		BeanDefinitionLoader loader = createBeanDefinitionLoader(getBeanDefinitionRegistry(context)/* BeanDefinitionRegistry */, sources);
 
+		// 设置beanNameGenerator
 		if (this.beanNameGenerator != null) {
 			loader.setBeanNameGenerator(this.beanNameGenerator);
 		}
+		// 设置resourceLoader
 		if (this.resourceLoader != null) {
 			loader.setResourceLoader(this.resourceLoader);
 		}
+		// 设置environment
 		if (this.environment != null) {
 			loader.setEnvironment(this.environment);
 		}
 
-		// 注册source对应的bd
+		// 注册source对应的bd(⚠️source里面包含了SpringApplication.run(class...)中的Class)
 		loader.load();
 	}
 
@@ -1199,7 +1210,7 @@ public class SpringApplication {
 	 * Returns the main application class that has been deduced or explicitly configured.
 	 * @return the main application class or {@code null}
 	 */
-	public Class<?> getMainApplicationClass() {
+	public Class<?> getMainApplicationClass()/* 没有地方调用 */{
 		return this.mainApplicationClass;
 	}
 
@@ -1431,7 +1442,7 @@ public class SpringApplication {
 	public Set<Object> getAllSources() {
 		Set<Object> allSources = new LinkedHashSet<>();
 
-		// SpringApplication.run(class...)中传入的类
+		// ⚠️SpringApplication.run(class...)中传入的类
 		if (!CollectionUtils.isEmpty(this.primarySources)) {
 			allSources.addAll(this.primarySources);
 		}

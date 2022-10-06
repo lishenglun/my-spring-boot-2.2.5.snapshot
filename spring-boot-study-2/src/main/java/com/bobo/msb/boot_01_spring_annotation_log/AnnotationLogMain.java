@@ -1,4 +1,4 @@
-package com.bobo.msb.boot_01;
+package com.bobo.msb.boot_01_spring_annotation_log;
 
 /**
  * Spring版本中注解的发展历史
