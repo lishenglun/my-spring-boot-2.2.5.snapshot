@@ -152,8 +152,9 @@ public class AutoConfigurationImportSelector implements DeferredImportSelector, 
 
 		/*
 
-		4、过滤掉当前环境下，不需要载入的配置类。
-		过滤规则具体实现：根据spring.factories文件中的AutoConfigurationImportFilter，以及spring-autoconfigure-metadata.properties文件中"配置类被加载的条件"，过滤掉当前环境下用不到的配置类。
+		4、过滤掉当前环境下，不需要载入的配置类：
+		(1)根据spring.factories文件中的AutoConfigurationImportFilter，
+		(2)以及spring-autoconfigure-metadata.properties文件中"配置类被加载的条件"，过滤掉当前环境下用不到的配置类。
 
 		*/
 		/**
