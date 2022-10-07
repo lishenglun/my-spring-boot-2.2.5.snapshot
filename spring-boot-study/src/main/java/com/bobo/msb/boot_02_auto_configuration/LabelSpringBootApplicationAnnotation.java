@@ -8,7 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @description TODO
  * @date 2022/10/6 17:16
  */
-//@SpringBootApplication
+@SpringBootApplication
 public class LabelSpringBootApplicationAnnotation {
 
 }
