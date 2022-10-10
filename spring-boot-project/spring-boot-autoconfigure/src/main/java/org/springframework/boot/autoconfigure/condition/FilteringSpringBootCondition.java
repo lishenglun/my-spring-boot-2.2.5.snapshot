@@ -178,6 +178,7 @@ abstract class FilteringSpringBootCondition extends SpringBootCondition
 
 		};
 
+		// 抽象方法
 		abstract boolean matches(String className, ClassLoader classLoader);
 
 		/**

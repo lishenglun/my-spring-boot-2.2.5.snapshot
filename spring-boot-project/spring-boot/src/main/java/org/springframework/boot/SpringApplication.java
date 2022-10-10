@@ -230,6 +230,7 @@ public class SpringApplication {
 
 	private Class<? extends ConfigurableApplicationContext> applicationContextClass;
 
+	// 当前"Web项目的类型"
 	private WebApplicationType webApplicationType;
 
 	private boolean headless = true;
@@ -402,6 +403,7 @@ public class SpringApplication {
 		// 为的是，让当前应用程序，在即使没有检测到显示器的情况下，也允许其启动，因为我们的代码一般在服务器里面，对于服务器来说，是不需要显示器的，所以要这样设置
 		configureHeadlessProperty();
 
+		/* 1、创建一个spring boot的广播器(SpringApplicationRunListeners)，然后获取spring boot的所有运行监听器(SpringApplicationRunListener)，放入其中 */
 		/**
 		 * 1、默认从spring.factories文件中，获取到的SpringApplicationRunListener只有{@link org.springframework.boot.context.event.EventPublishingRunListener}这1个。
 		 * （1）EventPublishingRunListener里面：获取了spring的事件广播器，以及spring体系内所有的的ApplicationListener
@@ -410,10 +412,9 @@ public class SpringApplication {
 		 *
 		 * 3、题外：⚠️事件设计，使得可以在系统启动的每一个关键节点（系统启动的不同的生命周期阶段），让我们都可以在对应的监听器里面去做一些行为！监听器可以监听我们想要的任一阶段的行为
 		 */
-		// 读取spring.factories文件中所有的SpringApplicationRunListener(运行监听器)类型的对象，
-		// 然后创建一个SpringApplicationRunListeners，存储所有获取到的SpringApplicationRunListener类型对象
-		// SpringApplicationRunListeners发布事件时，内部调用的都是SpringApplicationRunListener对应的发布事件方法。
-		// 简单概括：创建一个spring boot的广播器，然后获取spring boot所有的运行监听器，放入到广播器当中（后续广播器发布事件时，就可以触发所有spring boot的运行监听器）
+		// 创建一个SpringApplicationRunListeners，读取和实例化spring.factories文件中所有的SpringApplicationRunListener(运行监听器)对象，存储在SpringApplicationRunListener里面
+		// 简单概括：创建一个spring boot的广播器，然后获取spring boot的所有运行监听器，放入到广播器当中（后续广播器发布事件时，就可以触发所有spring boot的运行监听器）—— SpringApplicationRunListeners就相当于一个spring boot的广播器
+		// 题外：SpringApplicationRunListeners发布事件时，内部调用的都是SpringApplicationRunListener对应的发布事件方法。
 		SpringApplicationRunListeners listeners = getRunListeners(args);
 
 		// 🚥发布启动事件
@@ -423,6 +424,7 @@ public class SpringApplication {
 			// 创建一个应用程序的参数持有对象
 			ApplicationArguments applicationArguments = new DefaultApplicationArguments(args/* 一般为null */);
 
+			/* 2、准备环境信息。发布环境准备事件 */
 			// 读取配置环境，创建配置环境对象（会加载加载当前jvm(例如：jdk路径，jvm变量)、当前系统的环境(例如：当前系统的用户名)、以及自定义的属性信息）
 			// 题外：里面也会发布事件
 			ConfigurableEnvironment environment = prepareEnvironment(listeners, applicationArguments);
@@ -433,18 +435,25 @@ public class SpringApplication {
 			// 打印Banner信息（Banner信息也就是Spring图标）
 			Banner printedBanner = printBanner(environment);
 
-			// ⚠️根据当前web项目的类型，创建对应的应用程序上下文对象（Spring容器对象）
+			/* ️3、根据当前web项目的类型，创建对应的应用程序上下文对象（Spring容器对象） */
 			context = createApplicationContext();
 
 			// 加载配置的启动异常处理器
 			exceptionReporters = getSpringFactoriesInstances(SpringBootExceptionReporter.class,
 					new Class[] { ConfigurableApplicationContext.class }, context);
 
+			/*
+
+			4、刷新容器前，准备上下文
+
+			注意：⚠️️注册了SpringApplication.run(class...)中的Class bd
+
+			*/
 			// 刷新容器前做的一些操作：对容器做的一些准备工作，准备容器（不是留给用户扩展的）
 			// 题外：里面也会发布事件
 			prepareContext/* 准备上下文 */(context, environment, listeners, applicationArguments, printedBanner);
 
-			// ⚠️刷新应用上下文 完成Spring容器的初始化
+			/* 5、⚠️刷新应用上下文，完成Spring容器的初始化 */
 			refreshContext(context);
 
 			// 刷新容器后做的一些操作（留给用户扩展使用）
@@ -496,7 +505,7 @@ public class SpringApplication {
 		/* 以下是得到系统的一些配置信息，比如jvm的一些参数，系统的账号，当前登陆的用户 */
 
 		// 创建并且配置Environment
-		ConfigurableEnvironment environment = getOrCreateEnvironment();
+		ConfigurableEnvironment environment = getOrCreateEnvironment/* 获取或创建环境 */();
 		// 配置PropertySources和activeProfiles
 		configureEnvironment(environment, applicationArguments.getSourceArgs());
 		ConfigurationPropertySources.attach(environment);
@@ -833,14 +842,16 @@ public class SpringApplication {
 		/* 1、根据当前"Web项目的类型"，获取对应的容器类型 */
 		if (contextClass == null) {
 			try {
-				// 根据当前"Web项目的类型"，获取对应的容器类型
 				switch (this.webApplicationType) {
+				/* （1）servlet：AnnotationConfigServletWebServerApplicationContext */
 				case SERVLET:
 					contextClass = Class.forName(DEFAULT_SERVLET_WEB_CONTEXT_CLASS/* AnnotationConfigServletWebServerApplicationContext */);
 					break;
+				/* （2）reactive：AnnotationConfigReactiveWebServerApplicationContext */
 				case REACTIVE:
 					contextClass = Class.forName(DEFAULT_REACTIVE_WEB_CONTEXT_CLASS/* AnnotationConfigReactiveWebServerApplicationContext */);
 					break;
+				/* （3）默认：AnnotationConfigApplicationContext */
 				default:
 					contextClass = Class.forName(DEFAULT_CONTEXT_CLASS/* AnnotationConfigApplicationContext */);
 				}
