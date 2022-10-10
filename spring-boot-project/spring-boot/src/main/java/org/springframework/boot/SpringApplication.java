@@ -406,11 +406,12 @@ public class SpringApplication {
 		/* 1、创建一个spring boot的广播器(SpringApplicationRunListeners)，然后获取spring boot的所有运行监听器(SpringApplicationRunListener)，放入其中 */
 		/**
 		 * 1、默认从spring.factories文件中，获取到的SpringApplicationRunListener只有{@link org.springframework.boot.context.event.EventPublishingRunListener}这1个。
+		 *
 		 * （1）EventPublishingRunListener里面：获取了spring的事件广播器，以及spring体系内所有的的ApplicationListener
 		 *
-		 * 2、题外：SpringApplicationRunListeners本质上是一个spring boot体系内的"广播器/事件发布器"，用来发布事件时，触发spring boot体系内的监听器(SpringApplicationRunListener)
+		 * 2、题外：SpringApplicationRunListeners本质上是一个spring boot体系内的"广播器/事件发布器"；用来发布事件时，触发spring boot体系内所有的监听器(SpringApplicationRunListener)
 		 *
-		 * 3、题外：⚠️事件设计，使得可以在系统启动的每一个关键节点（系统启动的不同的生命周期阶段），让我们都可以在对应的监听器里面去做一些行为！监听器可以监听我们想要的任一阶段的行为
+		 * 3、题外：⚠️事件设计，使得可以在系统启动的每一个关键节点（系统启动的不同的生命周期阶段），让我们都可以在对应的监听器里面去扩展一些行为！监听器可以监听我们想要的任一阶段的行为
 		 */
 		// 创建一个SpringApplicationRunListeners，读取和实例化spring.factories文件中所有的SpringApplicationRunListener(运行监听器)对象，存储在SpringApplicationRunListener里面
 		// 简单概括：创建一个spring boot的广播器，然后获取spring boot的所有运行监听器，放入到广播器当中（后续广播器发布事件时，就可以触发所有spring boot的运行监听器）—— SpringApplicationRunListeners就相当于一个spring boot的广播器

@@ -56,13 +56,17 @@ public class EventPublishingRunListener/* 事件发布运行监听器 */ impleme
 		this.application = application;
 		this.args = args;
 
+		/**
+		 * 1、疑问：⚠️SpringApplicationRunListeners已经作为一个广播器了，为什么这里还要创建一个广播器？
+		 * （1）SpringApplicationRunListener是spring boot的监听器接口，与spring无关，是spring boot的一套监听器体系，
+		 * 	而SpringApplicationRunListeners也只是作为spring boot的广播器，广播事件触发的是spring boot体系内的监听器，也就是：SpringApplicationRunListener
+		 * （2）而ApplicationListener是spring体系内的监听器，所以需要创建一个spring体系的广播器，去广播事件触发spring体系内的监听器！
+		 *
+		 * 题外：spring boot和spring它们各自都有一套自己的监听器体系，但是spring boot监听器体系，最终走的是spring的监听器体系
+		 * 题外：之所以spring boot监听器体系，可以走spring的监听器体系，是因为：spring boot和spring的监听器所处理的事件都是同一体系，都是spring的事件体系，接口是：ApplicationEvent
+		 */
 		/* 1、创建广播器(SimpleApplicationEventMulticaster) */
-		// 题外：spring在容器中没有自定义的广播器时，spring默认使用的广播器也是SimpleApplicationEventMulticaster
-		// 题外：⚠️SpringApplicationRunListeners已经作为一个广播器了，为什么这里还要创建一个广播器？
-		// >>> SpringApplicationRunListener是spring boot的监听器接口，与spring无关，是spring boot的监听器体系，
-		// >>> 而SpringApplicationRunListeners也只是作为spring boot的广播器，广播事件，触发的是spring boot体系内的监听器，也就是：SpringApplicationRunListener
-		// >>> 而ApplicationListener是spring体系内的监听器，所以需要创建一个spring体系的广播器，去广播事件，触发spring体系内的监听器！
-		// >>> spring boot和spring它们各自都有一套自己的监听器体系，但是spring boot监听器体系，最终走的是spring的监听器体系
+		// 题外：题外：spring在容器中没有自定义的广播器时，spring默认使用的广播器也是SimpleApplicationEventMulticaster
 		this.initialMulticaster = new SimpleApplicationEventMulticaster();
 
 		/* 2、往广播器里面注册所有的监听器 */
