@@ -35,6 +35,7 @@ public class DefaultApplicationArguments implements ApplicationArguments {
 
 	private final Source source;
 
+	// run()方法中传入的main()方法的参数
 	private final String[] args;
 
 	public DefaultApplicationArguments(String... args) {

@@ -195,7 +195,7 @@ public class SpringApplication {
 
 	private static final Log logger = LogFactory.getLog(SpringApplication.class);
 
-	// 记录主方法的配置类Class
+	// 记录run()传入的配置类
 	// 例如：SpringApplication.run(Boot2StartApp.class)中的Boot2StartApp
 	// 注意：⚠️primarySources和mainApplicationClass的区别：
 	// >>> primarySources是我们在调用SpringApplication.run()时参数传入的Class，可以传入多个；
@@ -300,10 +300,12 @@ public class SpringApplication {
 
 	/**
 	 * 本方法中完成了几个核心操作：
-	 * （1）根据是否存在"某些类的类路径名称"推导出Web项目的类型：servlet web项目 / reactive web项目 / 不是一个web项目
-	 * （2）初始化配置在spring.factories文件中的"初始化器" —— ApplicationContextInitializer
-	 * （3）初始化配置在spring.factories文件中的"监听器" —— ApplicationListener
-	 * （4）通过StackTrace反推main方法所在的Class对象
+	 * （1）记录run()传入的配置类
+	 * （2）根据判断当前项目中是否存在一些"全限定类名"对应的类，推导出当前Web项目的类型。一共有3个：：servlet web项目 / reactive web项目 / 不是一个web项目
+	 * （3）初始化spring.factories文件中配置的的"初始化器" —— ApplicationContextInitializer
+	 * （4）初始化spring.factories文件中配置的spring体系的"监听器" —— ApplicationListener
+	 * （5）通过堆栈信息反推main方法所在的Class对象
+	 * 具体做法：挨个比对堆栈的方法名称是不是main，是的话就证明找到了main方法了，然后获取main方法所在的Class
 	 *
 	 * Create a new {@link SpringApplication} instance. The application context will load
 	 * beans from the specified primary sources (see {@link SpringApplication class-level}
@@ -318,23 +320,24 @@ public class SpringApplication {
 	public SpringApplication(ResourceLoader resourceLoader, Class<?>... primarySources) {
 		// 传递的resourceLoader为null
 		this.resourceLoader = resourceLoader;
+
 		Assert.notNull(primarySources, "PrimarySources must not be null");
 
-		/* 1、记录主方法的配置类Class */
+		/* 1、记录run()传入的配置类 */
 		this.primarySources = new LinkedHashSet<>(Arrays.asList(primarySources));
 
-		/* 2、判断项目中是否存在"一些类的全限定类名"所对应的类，推导出当前Web项目的类型：1、servlet web项目 / 2、reactive web项目 / 3、不是一个web项目 */
+		/* 2、根据判断当前项目中是否存在一些"全限定类名"对应的类，推导出当前Web项目的类型。一共有3个：：1、servlet web项目 / 2、reactive web项目 / 3、不是一个web项目 */
 		this.webApplicationType = WebApplicationType.deduceFromClasspath/* 从类路径推断 */();
 
 		/**
 		 * 💡提示：当前Spring boot项目下，只有spring-boot、spring-boot-autoconfigure这2个模块下，存在spring.factories文件
 		 */
 
-		/* 3、初始化配置在spring.factories文件中的"初始化器" —— ApplicationContextInitializer */
+		/* 3、初始化spring.factories文件中配置的"初始化器" —— ApplicationContextInitializer */
 		// 加载配置在spring.factories文件中的ApplicationContextInitializer实现类的全限定类名，并通过反射实例化对象，然后存储在initializers成员变量中
 		setInitializers((Collection) getSpringFactoriesInstances(ApplicationContextInitializer.class));
 
-		/* 4、初始化配置在spring.factories文件中spring体系的"监听器" —— ApplicationListener */
+		/* 4、初始化spring.factories文件中配置的spring体系的"监听器" —— ApplicationListener */
 		// 加载配置在spring.factories文件中的监听器并实例化对象，然后将监听器对象存储在了listeners成员变量中
 		setListeners((Collection) getSpringFactoriesInstances(ApplicationListener.class));
 
@@ -376,7 +379,6 @@ public class SpringApplication {
 	}
 
 	/**
-	 *
 	 * 题外：spring boot启动过程中的核心节点，都会发布相关事件
 	 *
 	 * Run the Spring application, creating and refreshing a new
@@ -385,8 +387,9 @@ public class SpringApplication {
 	 * @return a running {@link ApplicationContext}
 	 */
 	public ConfigurableApplicationContext run(String... args) {
+		/* 1、创建一个计时器，记录系统启动的时长 */
 		// 创建一个任务执行观察器，统计启动的时间
-		StopWatch stopWatch = new StopWatch();
+		StopWatch/* 秒表 */ stopWatch = new StopWatch();
 		// 开始执行记录执行时间
 		stopWatch.start();
 
@@ -404,7 +407,15 @@ public class SpringApplication {
 		// 为的是，让当前应用程序，在即使没有检测到显示器的情况下，也允许其启动，因为我们的代码一般在服务器里面，对于服务器来说，是不需要显示器的，所以要这样设置
 		configureHeadlessProperty();
 
-		/* 1、创建一个spring boot的广播器(SpringApplicationRunListeners)，内部获取和保存了spring.factories文件中spring boot体系的监听器(SpringApplicationRunListener) */
+		/*
+
+		2、创建一个spring boot的广播器(SpringApplicationRunListeners)，里面初始化了spring.factories文件中spring boot体系的监听器(SpringApplicationRunListener)
+
+		题外：默认只有一个spring boot的监听器：EventPublishingRunListener。在创建EventPublishingRunListener对象的时候，
+		>>> 里面创建了spring的广播器(SimpleApplicationEventMulticaster)，以及获取了所有的spring监听器(new SpringApplication()时初始化的)，注入到spring广播器当中
+
+		*/
+
 		/**
 		 * 1、默认从spring.factories文件中，获取到的SpringApplicationRunListener只有{@link org.springframework.boot.context.event.EventPublishingRunListener}这1个。
 		 *
@@ -423,10 +434,10 @@ public class SpringApplication {
 		// 题外：会触发调用"监听starting事件的监听器"
 		listeners.starting();
 		try {
-			// 创建一个应用程序的参数持有对象
-			ApplicationArguments applicationArguments = new DefaultApplicationArguments(args/* 一般为null */);
+			/* 3、创建一个"应用程序参数"的持有对象，持有应用程序参数 */
+			ApplicationArguments/* 应用程序参数 */ applicationArguments = new DefaultApplicationArguments(args/* 一般为null */);
 
-			/* 2、准备环境信息。发布环境准备事件 */
+			/* 4、准备环境信息：(1)创建环境对象，加载系统环境参数，(2)发布环境准备事件 */
 			// 读取配置环境，创建配置环境对象（会加载加载当前jvm(例如：jdk路径，jvm变量)、当前系统的环境(例如：当前系统的用户名)、以及自定义的属性信息）
 			// 题外：里面也会发布事件
 			ConfigurableEnvironment environment = prepareEnvironment(listeners, applicationArguments);
@@ -434,31 +445,34 @@ public class SpringApplication {
 			// 配置需要忽略的BeanInfo信息
 			configureIgnoreBeanInfo(environment);
 
-			// 打印Banner信息（Banner信息也就是Spring图标）
+			/* 5、打印Banner信息（Banner信息也就是Spring图标） */
 			Banner printedBanner = printBanner(environment);
 
-			/* ️3、根据当前web项目的类型，创建对应的应用程序上下文对象（Spring容器对象） */
+			/* ️6、根据当前web项目的类型，创建对应的应用上下文（Spring容器对象） */
 			context = createApplicationContext();
 
-			// 加载配置的启动异常处理器
-			exceptionReporters = getSpringFactoriesInstances(SpringBootExceptionReporter.class,
+			/* 7、获取spring.factories文件中的异常报告器 —— SpringBootExceptionReporter */
+
+			// 获取spring.factories文件中的异常报告器 —— SpringBootExceptionReporter
+			// 题外：启动异常处理器？
+			exceptionReporters = getSpringFactoriesInstances(SpringBootExceptionReporter/* SpringBoot异常报告器 */.class,
 					new Class[] { ConfigurableApplicationContext.class }, context);
 
 			/*
 
-			4、刷新容器前，准备上下文
+			8、在刷新容器前，准备应用上下文
 
-			注意：⚠️️注册了SpringApplication.run(class...)中的Class bd
+			注意：⚠️️里面注册了SpringApplication.run(class...)中的Class bd
 
 			*/
 			// 刷新容器前做的一些操作：对容器做的一些准备工作，准备容器（不是留给用户扩展的）
 			// 题外：里面也会发布事件
 			prepareContext/* 准备上下文 */(context, environment, listeners, applicationArguments, printedBanner);
 
-			/* 5、⚠️刷新应用上下文，完成Spring容器的初始化 */
+			/* 9、⚠️刷新应用上下文，也就是完成Spring容器的初始化 */
 			refreshContext(context);
 
-			// 刷新容器后做的一些操作（留给用户扩展使用）
+			/* 10、刷新容器后做的一些操作（留给用户扩展实现） */
 			afterRefresh(context, applicationArguments);
 
 			// 启动结束，记录启动耗时
@@ -470,7 +484,7 @@ public class SpringApplication {
 			// 🚥发布启动完成事件
 			listeners.started(context);
 
-			// 打电话给跑步者
+			/* 11、调用Runner执行器，也就是：执行容器中的ApplicationRunner#run()、CommandLineRunner#run() */
 			callRunners(context, applicationArguments);
 		}
 		catch (Throwable ex) {
@@ -494,6 +508,8 @@ public class SpringApplication {
 
 	/**
 	 * 准备环境
+	 * （1）创建环境对象，加载系统参数
+	 * （2）发布环境准备事件
 	 *
 	 * @param listeners
 	 * @param applicationArguments
@@ -501,7 +517,7 @@ public class SpringApplication {
 	 */
 	private ConfigurableEnvironment prepareEnvironment/* 准备环境 */(SpringApplicationRunListeners listeners,
 			ApplicationArguments applicationArguments) {
-		/* 1、创建并且配置环境信息 */
+		/* 1、创建环境对象，加载系统参数 */
 		// Create and configure the environment —— 创建和配置环境
 
 		/* 以下是得到系统的一些配置信息，比如jvm的一些参数，系统的账号，当前登陆的用户 */
@@ -1088,15 +1104,25 @@ public class SpringApplication {
 	protected void afterRefresh(ConfigurableApplicationContext context, ApplicationArguments args) {
 	}
 
+	/**
+	 * 执行容器中的ApplicationRunner#run()、CommandLineRunner#run()
+	 */
 	private void callRunners(ApplicationContext context, ApplicationArguments args) {
 		List<Object> runners = new ArrayList<>();
+
+		// 获取容器中的ApplicationRunner
 		runners.addAll(context.getBeansOfType(ApplicationRunner.class).values());
+		// 获取容器中的CommandLineRunner
 		runners.addAll(context.getBeansOfType(CommandLineRunner.class).values());
+
 		AnnotationAwareOrderComparator.sort(runners);
 		for (Object runner : new LinkedHashSet<>(runners)) {
+			// 执行ApplicationRunner#run()
 			if (runner instanceof ApplicationRunner) {
 				callRunner((ApplicationRunner) runner, args);
 			}
+
+			// 执行CommandLineRunner#run()
 			if (runner instanceof CommandLineRunner) {
 				callRunner((CommandLineRunner) runner, args);
 			}
