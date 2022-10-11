@@ -42,28 +42,39 @@ public class PropertiesPropertySourceLoader implements PropertySourceLoader {
 		return new String[] { "properties", "xml" };
 	}
 
+	/**
+	 *
+	 * @param name 					applicationConfig: [classpath:/application.properties]
+	 * @param resource 				配置文件资源
+	 * @return
+	 * @throws IOException
+	 */
 	@Override
-	public List<PropertySource<?>> load(String name, Resource resource) throws IOException {
-		// 获取属性文件中所有的信息
+	public List<PropertySource<?>> load(String name/*  */, Resource resource) throws IOException {
+		/* 1、⚠️获取配置文件中所有的信息 */
 		Map<String, ?> properties = loadProperties(resource);
+
+		/* 2、配置文件中不存在配置信息，则返回空 */
 		if (properties.isEmpty()) {
 			return Collections.emptyList();
 		}
+
+		/* 3、配置文件中存在配置信息，则包装一下，再返回 */
 		return Collections
 				.singletonList(new OriginTrackedMapPropertySource(name, Collections.unmodifiableMap(properties), true));
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private Map<String, ?> loadProperties(Resource resource) throws IOException {
-		// 获取属性文件的名称
+		/* 1、获取属性文件的名称，例如：application.properties */
 		String filename = resource.getFilename();
 
-		// 处理application.xml
+		/* 2、处理application.xml */
 		if (filename != null && filename.endsWith(XML_FILE_EXTENSION/* .xml */)) {
 			return (Map) PropertiesLoaderUtils.loadProperties(resource);
 		}
 
-		// ⚠️处理application.properties
+		/* 3、⚠️处理application.properties */
 		return new OriginTrackedPropertiesLoader(resource).load();
 	}
 

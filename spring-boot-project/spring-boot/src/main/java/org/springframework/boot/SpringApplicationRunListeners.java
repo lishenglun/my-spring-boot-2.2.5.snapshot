@@ -43,7 +43,7 @@ class SpringApplicationRunListeners {
 	 * 默认从spring.factories文件中，获取到的SpringApplicationRunListener只有{@link org.springframework.boot.context.event.EventPublishingRunListener}这1个，
 	 * 里面获取了事件广播器，以及所有的ApplicationListener
 	 */
-	// Spring应用程序运行监听器集合（spring boot的监听器做）
+	// spring boot的监听器集合
 	// 题外：SpringApplicationRunListeners相当于一个广播器，所以广播器里面具备所有监听器的实例
 	private final List<SpringApplicationRunListener> listeners;
 

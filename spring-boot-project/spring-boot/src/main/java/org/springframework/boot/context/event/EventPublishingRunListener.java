@@ -85,7 +85,7 @@ public class EventPublishingRunListener/* 事件发布运行监听器 */ impleme
 		 * {@link org.springframework.boot.context.FileEncodingApplicationListener}
 		 * {@link org.springframework.boot.liquibase.LiquibaseServiceLocatorApplicationListener}
 		 */
-		for (ApplicationListener<?>/* 应用程序监听器 */ listener : application.getListeners()/* 获取所有监听器 */) {
+		for (ApplicationListener<?>/* 应用程序监听器 */ listener : application.getListeners()/* 获取所有监听器，这些监听器是在new SpringApplication()时进行的初始化 */) {
 			// 往广播器里面，注册监听器
 			this.initialMulticaster.addApplicationListener(listener);
 		}

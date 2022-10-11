@@ -47,6 +47,8 @@ class FilteredPropertySource extends PropertySource<PropertySource<?>> {
 	}
 
 	/**
+	 * 该方法可忽略，没做什么事情
+	 *
 	 * @param environment
 	 * @param propertySourceName				defaultProperties
 	 * @param filteredProperties				spring.profiles.active、spring.profiles.include

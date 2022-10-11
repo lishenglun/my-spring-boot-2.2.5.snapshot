@@ -5,9 +5,8 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
- * SpringBoot中的属性文件加载原理分析
- *
- * application.yml和bootstrap.properties的关系和区别
+ * 一、SpringBoot中配置文件的加载原理分析
+ * 二、application.yml和bootstrap.properties的关系和区别
  *
  * ⚠️参考【spring-boot-study-bootstrap】模块
  */
@@ -15,7 +14,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class ConfigurationFileMain {
 
 	public static void main(String[] args) {
-		SpringApplication.run(ConfigurationFileMain.class);
+		SpringApplication.run(ConfigurationFileMain.class, args);
 	}
 
 }

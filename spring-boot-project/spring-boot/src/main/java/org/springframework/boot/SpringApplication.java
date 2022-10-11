@@ -269,6 +269,7 @@ public class SpringApplication {
 	 * {@link org.springframework.boot.liquibase.LiquibaseServiceLocatorApplicationListener}
 	 */
 	// 存储spring.factories文件中的"监听器"（实例化好的）
+	// 题外：这些监听器是在SpringApplication.run() ——> new SpringApplication()时进行的初始化
 	private List<ApplicationListener<?>> listeners;
 
 	private Map<String, Object> defaultProperties;
@@ -333,7 +334,7 @@ public class SpringApplication {
 		// 加载配置在spring.factories文件中的ApplicationContextInitializer实现类的全限定类名，并通过反射实例化对象，然后存储在initializers成员变量中
 		setInitializers((Collection) getSpringFactoriesInstances(ApplicationContextInitializer.class));
 
-		/* 4、初始化配置在spring.factories文件中的"监听器" —— ApplicationListener */
+		/* 4、初始化配置在spring.factories文件中spring体系的"监听器" —— ApplicationListener */
 		// 加载配置在spring.factories文件中的监听器并实例化对象，然后将监听器对象存储在了listeners成员变量中
 		setListeners((Collection) getSpringFactoriesInstances(ApplicationListener.class));
 
@@ -403,7 +404,7 @@ public class SpringApplication {
 		// 为的是，让当前应用程序，在即使没有检测到显示器的情况下，也允许其启动，因为我们的代码一般在服务器里面，对于服务器来说，是不需要显示器的，所以要这样设置
 		configureHeadlessProperty();
 
-		/* 1、创建一个spring boot的广播器(SpringApplicationRunListeners)，然后获取spring boot的所有运行监听器(SpringApplicationRunListener)，放入其中 */
+		/* 1、创建一个spring boot的广播器(SpringApplicationRunListeners)，内部获取和保存了spring.factories文件中spring boot体系的监听器(SpringApplicationRunListener) */
 		/**
 		 * 1、默认从spring.factories文件中，获取到的SpringApplicationRunListener只有{@link org.springframework.boot.context.event.EventPublishingRunListener}这1个。
 		 *
@@ -513,7 +514,7 @@ public class SpringApplication {
 
 		/* 2、🚥发布环境准备事件 */
 		/**
-		 * {@link org.springframework.boot.context.config.ConfigFileApplicationListener}
+		 * {@link org.springframework.boot.context.config.ConfigFileApplicationListener}解析了spring boot中的配置文件，例如：application.properties文件
 		 */
 		// 在准备环境信息的时候，会发布一个环境准备事件，
 		listeners.environmentPrepared(environment);
@@ -638,8 +639,16 @@ public class SpringApplication {
 		Class<?>[] types = new Class<?>[] { SpringApplication.class, String[].class };
 
 		return new SpringApplicationRunListeners(logger,
+				/**
+				 * 题外：只有{@link org.springframework.boot.context.event.EventPublishingRunListener}这1个
+				 */
 				// 读取spring.factories文件中所有的SpringApplicationRunListener类型的对象
-				getSpringFactoriesInstances(SpringApplicationRunListener.class, types,
+				getSpringFactoriesInstances(
+						// 要从spring.factories文件中读取和构建对象的类型
+						SpringApplicationRunListener.class,
+						// 构造器参数类型
+						types,
+						// 构造器参数值
 						this/* ⚠️这个是作为参数，把当前SpringApplication对象作为参数 */, args));
 	}
 
@@ -672,13 +681,14 @@ public class SpringApplication {
 		// 获取当前上下文类加载器
 		ClassLoader classLoader = getClassLoader();
 
+		/* 1、获取spring.factories文件中，对应类型的全限定类名 */
 		// 加载spring.factories文件中的所有信息到内存中，然后根据类型，获取相关的实现类的全限定类名
 		Set<String> names = new LinkedHashSet<>(SpringFactoriesLoader.loadFactoryNames(type, classLoader));
 
-		// 根据类型的全限定类名，通过反射实例化对象
+		/* 2、根据类型的全限定类名，通过反射实例化对象 */
 		List<T> instances = createSpringFactoriesInstances(type, parameterTypes, classLoader, args, names);
 
-		// 排序
+		/* 3、排序 */
 		AnnotationAwareOrderComparator.sort(instances);
 
 		return instances;
@@ -1538,6 +1548,10 @@ public class SpringApplication {
 	}
 
 	/**
+	 * 获取所有的监听器
+	 *
+	 * 题外：这些监听器是在SpringApplication.run() ——> new SpringApplication()时进行的初始化
+	 *
 	 * Returns read-only ordered Set of the {@link ApplicationListener}s that will be
 	 * applied to the SpringApplication and registered with the {@link ApplicationContext}
 	 * .
