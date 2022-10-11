@@ -76,10 +76,11 @@ public class TomcatWebServerFactoryCustomizer
 
 	/**
 	 * 定制Tomcat的详细信息.
+	 *
 	 * @param factory the web server factory to customize
 	 */
 	@Override
-	public void customize(ConfigurableTomcatWebServerFactory factory) {
+	public void customize(ConfigurableTomcatWebServerFactory/* 可配置的Tomcat Web服务器工厂 */ factory) {
 		ServerProperties properties = this.serverProperties;
 		ServerProperties.Tomcat tomcatProperties = properties.getTomcat();
 		PropertyMapper propertyMapper = PropertyMapper.get();
@@ -116,7 +117,8 @@ public class TomcatWebServerFactoryCustomizer
 				.to((relaxedChars) -> customizeRelaxedPathChars(factory, relaxedChars));
 		propertyMapper.from(tomcatProperties::getRelaxedQueryChars).as(this::joinCharacters).whenHasText()
 				.to((relaxedChars) -> customizeRelaxedQueryChars(factory, relaxedChars));
-		customizeStaticResources(factory); // 定制静态资源属性
+		// 定制静态资源属性
+		customizeStaticResources(factory);
 		customizeErrorReportValve(properties.getError(), factory);
 	}
 

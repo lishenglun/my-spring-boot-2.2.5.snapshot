@@ -148,8 +148,10 @@ public class ServletWebServerApplicationContext extends GenericWebApplicationCon
 
 	@Override
 	protected void onRefresh() {
+		// 没做什么
 		super.onRefresh();
 		try {
+			// ⚠️创建Web服务
 			createWebServer();
 		}
 		catch (Throwable ex) {
@@ -173,11 +175,31 @@ public class ServletWebServerApplicationContext extends GenericWebApplicationCon
 	}
 
 	private void createWebServer() {
+		// 题外：第一次刚进来，默认为null
 		WebServer webServer = this.webServer;
+		// 题外：第一次刚进来，默认为null
 		ServletContext servletContext = getServletContext();
 		if (webServer == null && servletContext == null) {
-			ServletWebServerFactory factory = getWebServerFactory(); // 获取WebServer的工厂对象
-			this.webServer = factory.getWebServer(getSelfInitializer()); // 获取具体的WebServer
+			/*
+
+			1、先获取一个ServletWebServerFactory，
+
+			默认得到的是TomcatServletWebServerFactory
+
+			*/
+			// 获取ServletWebServerFactory(ServletWebServer的工厂对象)，默认得到的是TomcatServletWebServerFactory bean
+			ServletWebServerFactory factory = getWebServerFactory();
+
+			/*
+
+			2、然后通过ServletWebServerFactory获取具体的WebServer，
+
+			默认情况下，是通过TomcatServletWebServerFactory获取到一个TomcatWebServer，在获取TomcatWebServer的过程中，里面创建了一堆tomcat相关的组件，从而完成了tomcat的嵌入
+
+			*/
+			// 通过ServletWebServerFactory获取具体的WebServer
+			// 默认是通过TomcatServletWebServerFactory获取到一个TomcatWebServer，里面创建了一堆tomcat相关的组件，完成tomcat的
+			this.webServer = factory.getWebServer(getSelfInitializer()/* ServletContextInitializer */);
 		}
 		else if (servletContext != null) {
 			try {
@@ -187,26 +209,42 @@ public class ServletWebServerApplicationContext extends GenericWebApplicationCon
 				throw new ApplicationContextException("Cannot initialize servlet context", ex);
 			}
 		}
+		// 初始化属性源
 		initPropertySources();
 	}
 
 	/**
+	 * 获取ServletWebServerFactory bean，默认得到的是TomcatServletWebServerFactory bean
+	 *
 	 * Returns the {@link ServletWebServerFactory} that should be used to create the
 	 * embedded {@link WebServer}. By default this method searches for a suitable bean in
 	 * the context itself.
 	 * @return a {@link ServletWebServerFactory} (never {@code null})
 	 */
 	protected ServletWebServerFactory getWebServerFactory() {
-		// Use bean names so that we don't consider the hierarchy
+		// Use bean names so that we don't consider the hierarchy —— 使用beanName，以便我们不考虑层次结构
+		/**
+		 * 1、默认获取得到的ServletWebServerFactory beanName是：tomcatServletWebServerFactory
+		 * 由{@link org.springframework.boot.autoconfigure.web.servlet.ServletWebServerFactoryAutoConfiguration}
+		 * 上的@Import，导入的{@link org.springframework.boot.autoconfigure.web.servlet.ServletWebServerFactoryConfiguration.EmbeddedTomcat}而来，
+		 * 里面注册了一个{@link org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory}
+		 */
+		// 获取ServletWebServerFactory类型的beanName(默认：tomcatServletWebServerFactory)
 		String[] beanNames = getBeanFactory().getBeanNamesForType(ServletWebServerFactory.class);
+
+		// 没有ServletWebServerFactory类型的bean，报错
 		if (beanNames.length == 0) {
 			throw new ApplicationContextException("Unable to start ServletWebServerApplicationContext due to missing "
 					+ "ServletWebServerFactory bean.");
 		}
+
+		// 只允许有一个ServletWebServerFactory类型的bean，多了也报错
 		if (beanNames.length > 1) {
 			throw new ApplicationContextException("Unable to start ServletWebServerApplicationContext due to multiple "
 					+ "ServletWebServerFactory beans : " + StringUtils.arrayToCommaDelimitedString(beanNames));
 		}
+
+		// ⚠️创建ServletWebServerFactory实例
 		return getBeanFactory().getBean(beanNames[0], ServletWebServerFactory.class);
 	}
 
@@ -218,6 +256,13 @@ public class ServletWebServerApplicationContext extends GenericWebApplicationCon
 	 */
 	private org.springframework.boot.web.servlet.ServletContextInitializer getSelfInitializer() {
 		return this::selfInitialize;
+		// 自己写的代码：上面是一个简写，实际的是这样的：
+		//return new ServletContextInitializer() {
+		//	@Override
+		//	public void onStartup(ServletContext servletContext) throws ServletException {
+		//		ServletWebServerApplicationContext.this.selfInitialize(servletContext);
+		//	}
+		//};
 	}
 
 	private void selfInitialize(ServletContext servletContext) throws ServletException {

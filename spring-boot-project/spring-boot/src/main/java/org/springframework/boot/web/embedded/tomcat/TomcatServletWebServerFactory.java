@@ -136,7 +136,8 @@ public class TomcatServletWebServerFactory extends AbstractServletWebServerFacto
 
 	private int backgroundProcessorDelay;
 
-	private boolean disableMBeanRegistry = true;
+	//
+	private boolean disableMBeanRegistry/* 禁用M Bean注册表 */ = true;
 
 	/**
 	 * Create a new {@link TomcatServletWebServerFactory} instance.
@@ -169,26 +170,43 @@ public class TomcatServletWebServerFactory extends AbstractServletWebServerFacto
 				: new ArrayList<>();
 	}
 
+	/**
+	 * 返回一个TomcatWebServer
+	 *
+	 * @param initializers 		在服务器启动时应用的{@link ServletContextInitializer}Servlet上下文初始化器
+	 */
 	@Override
 	public WebServer getWebServer(ServletContextInitializer... initializers) {
-		if (this.disableMBeanRegistry) {
+		if (this.disableMBeanRegistry/* 禁用M Bean注册表 */) {
 			Registry.disableRegistry();
 		}
-		Tomcat tomcat = new Tomcat(); // 创建Tomcat容器，并且配置连接器，引擎等属性
+		// 创建Tomcat容器，并且配置连接器，引擎等属性
+		Tomcat tomcat = new Tomcat();
 		File baseDir = (this.baseDirectory != null) ? this.baseDirectory : createTempDir("tomcat");
-		tomcat.setBaseDir(baseDir.getAbsolutePath());
-		Connector connector = new Connector(this.protocol); // 创建连接器
-		connector.setThrowOnFailure(true);
+		tomcat.setBaseDir/* 设置基本目录 */(baseDir.getAbsolutePath/* 获取绝对路径 */());
+		// 创建连接器
+		Connector connector = new Connector(this.protocol);
+		connector.setThrowOnFailure/* 设置失败时抛出 */(true);
+		// 把连接器放入到Service当中
 		tomcat.getService().addConnector(connector);
+		// 定制连接器
 		customizeConnector(connector);
 		tomcat.setConnector(connector);
-		tomcat.getHost().setAutoDeploy(false);
-		configureEngine(tomcat.getEngine()); // 配置Engine
-		for (Connector additionalConnector : this.additionalTomcatConnectors) {
-			tomcat.getService().addConnector(additionalConnector); // Service关联Connector
+
+		tomcat.getHost().setAutoDeploy/* 设置自动部署 */(false);
+
+		// 配置Engine
+		configureEngine(tomcat.getEngine());
+
+		for (Connector additionalConnector : this.additionalTomcatConnectors/* 额外的Tomcat连接器 */) {
+			// Service关联Connector
+			tomcat.getService().addConnector(additionalConnector);
 		}
+
 		prepareContext(tomcat.getHost(), initializers);
-		return getTomcatWebServer(tomcat);  // 获取TomcatWebServer
+
+		// 获取TomcatWebServer
+		return getTomcatWebServer(tomcat);
 	}
 
 	private void configureEngine(Engine engine) {
@@ -297,7 +315,7 @@ public class TomcatServletWebServerFactory extends AbstractServletWebServerFacto
 		}
 	}
 
-	// Needs to be protected so it can be used by subclasses
+	// Needs to be protected so it can be used by subclasses —— 需要保护，以便子类可以使用
 	protected void customizeConnector(Connector connector) {
 		int port = Math.max(getPort(), 0);
 		connector.setPort(port);
@@ -311,7 +329,7 @@ public class TomcatServletWebServerFactory extends AbstractServletWebServerFacto
 		if (getUriEncoding() != null) {
 			connector.setURIEncoding(getUriEncoding().name());
 		}
-		// Don't bind to the socket prematurely if ApplicationContext is slow to start
+		// Don't bind to the socket prematurely if ApplicationContext is slow to start —— 如果ApplicationContext启动缓慢，不要过早绑定到套接字
 		connector.setProperty("bindOnInit", "false");
 		if (getSsl() != null && getSsl().isEnabled()) {
 			customizeSsl(connector);

@@ -34,9 +34,12 @@ public interface ServletWebServerFactory {
 	 * not be able to connect to the returned server until {@link WebServer#start()} is
 	 * called (which happens when the {@code ApplicationContext} has been fully
 	 * refreshed).
+	 *
 	 * @param initializers {@link ServletContextInitializer}s that should be applied as
-	 * the server starts
+	 * the server starts —— 应该在服务器启动时应用的 {@link ServletContextInitializer}
+	 *
 	 * @return a fully configured and started {@link WebServer}
+	 *
 	 * @see WebServer#stop()
 	 */
 	WebServer getWebServer(ServletContextInitializer... initializers);

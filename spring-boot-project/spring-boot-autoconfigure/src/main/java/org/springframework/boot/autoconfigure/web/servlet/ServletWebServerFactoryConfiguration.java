@@ -67,6 +67,7 @@ class ServletWebServerFactoryConfiguration {
 	@ConditionalOnMissingBean(value = ServletWebServerFactory.class, search = SearchStrategy.CURRENT)
 	static class EmbeddedTomcat {
 
+		// TomcatServletWebServerFactory间接实现ServletWebServerFactory
 		@Bean
 		TomcatServletWebServerFactory tomcatServletWebServerFactory(
 				ObjectProvider<TomcatConnectorCustomizer> connectorCustomizers,

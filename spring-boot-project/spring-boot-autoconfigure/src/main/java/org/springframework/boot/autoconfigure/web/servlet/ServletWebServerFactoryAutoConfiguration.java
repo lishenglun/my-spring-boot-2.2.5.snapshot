@@ -55,21 +55,26 @@ import org.springframework.web.filter.ForwardedHeaderFilter;
  * @author Stephane Nicoll
  * @since 2.0.0
  */
-@Configuration(proxyBeanMethods = false) // 配置类
-@AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE) // 自动装配的顺序
-@ConditionalOnClass(ServletRequest.class) //  引入Servlet的依赖才生效
-@ConditionalOnWebApplication(type = Type.SERVLET) // 当Web容器是Servlet才生效
-@EnableConfigurationProperties(ServerProperties.class) // 关联对应的属性配置类
-// 通过 @Import注解引入一些Web容器
-@Import({ ServletWebServerFactoryAutoConfiguration.BeanPostProcessorsRegistrar.class,
+// 配置类
+@Configuration(proxyBeanMethods = false)
+// 自动装配的顺序
+@AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE/* Integer.MIN_VALUE，最高优先级 */)
+// 引入Servlet的依赖才生效
+@ConditionalOnClass(ServletRequest.class)
+// 当Web容器是Servlet才生效
+@ConditionalOnWebApplication(type = Type.SERVLET)
+// 关联对应的属性配置类
+@EnableConfigurationProperties(ServerProperties.class)
+// 通过@Import注解引入一些Web容器
+@Import({ServletWebServerFactoryAutoConfiguration.BeanPostProcessorsRegistrar.class,
 		// 引入一些对应的容器的类对象
 		// (1)内嵌tomcat
-		ServletWebServerFactoryConfiguration.EmbeddedTomcat.class,
+		ServletWebServerFactoryConfiguration.EmbeddedTomcat/* 嵌入式Tomcat */.class,
 		// (1)内嵌Jetty
 		ServletWebServerFactoryConfiguration.EmbeddedJetty.class,
 		// (2)内嵌Undertow
 		ServletWebServerFactoryConfiguration.EmbeddedUndertow.class })
-public class ServletWebServerFactoryAutoConfiguration {
+public class ServletWebServerFactoryAutoConfiguration/* Servlet Web服务器工厂的AutoConfiguration */ {
 
 	/**
 	 * 这里注入了一个ServletWebServer的定制工厂.
@@ -102,6 +107,8 @@ public class ServletWebServerFactoryAutoConfiguration {
 	/**
 	 * Registers a {@link WebServerFactoryCustomizerBeanPostProcessor}. Registered via
 	 * {@link ImportBeanDefinitionRegistrar} for early registration.
+	 *
+	 * 注册一个{@link WebServerFactoryCustomizerBeanPostProcessor}。通过{@link ImportBeanDefinitionRegistrar}注册以便提前注册。
 	 */
 	public static class BeanPostProcessorsRegistrar implements ImportBeanDefinitionRegistrar, BeanFactoryAware {
 
@@ -117,17 +124,22 @@ public class ServletWebServerFactoryAutoConfiguration {
 		@Override
 		public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata,
 				BeanDefinitionRegistry registry) {
+
 			if (this.beanFactory == null) {
 				return;
 			}
-			// 向容器中注册了一个后置处理器
+
+			/* 注册2个Bean后置处理器 */
+
+			// 注册WebServerFactoryCustomizerBeanPostProcessor bd，beanName=webServerFactoryCustomizerBeanPostProcessor
 			registerSyntheticBeanIfMissing(registry, "webServerFactoryCustomizerBeanPostProcessor",
 					WebServerFactoryCustomizerBeanPostProcessor.class);
+			// 注册ErrorPageRegistrarBeanPostProcessor bd，beanName=errorPageRegistrarBeanPostProcessor
 			registerSyntheticBeanIfMissing(registry, "errorPageRegistrarBeanPostProcessor",
 					ErrorPageRegistrarBeanPostProcessor.class);
 		}
 
-		private void registerSyntheticBeanIfMissing(BeanDefinitionRegistry registry, String name, Class<?> beanClass) {
+		private void registerSyntheticBeanIfMissing/* 如果缺少，则注册合成Bean */(BeanDefinitionRegistry registry, String name, Class<?> beanClass) {
 			if (ObjectUtils.isEmpty(this.beanFactory.getBeanNamesForType(beanClass, true, false))) {
 				RootBeanDefinition beanDefinition = new RootBeanDefinition(beanClass);
 				beanDefinition.setSynthetic(true);
